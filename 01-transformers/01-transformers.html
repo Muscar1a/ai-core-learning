@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How Transformers Work</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+* { margin: 0; box-sizing: border-box; }
+body { background: #1e1b17; color: #e8e4df; font-family: 'Inter', -apple-system, system-ui, sans-serif; font-size: 20px; }
+.shell { min-height: 100vh; display: flex; flex-direction: column; }
+header { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-bottom: 1px solid #2a2720; }
+.logo { font-size: 13px; font-weight: 700; color: #e8a84c; letter-spacing: 0.06em; }
+.dots { display: flex; gap: 4px; align-items: center; }
+.dots button { height: 8px; border-radius: 4px; border: none; padding: 0; cursor: pointer; transition: all 0.3s; }
+.title-bar { display: flex; justify-content: space-between; align-items: baseline; padding: 32px 32px 0; max-width: 1000px; margin: 0 auto; width: 100%; }
+.title-bar h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.02em; }
+.counter { font-size: 15px; color: #6a6560; }
+main { flex: 1; padding: 24px 32px 32px; overflow-y: auto; }
+footer { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; border-top: 1px solid #2a2720; }
+.btn { padding: 10px 24px; border-radius: 8px; border: 1px solid #33302a; background: transparent; color: #a09890; font-size: 15px; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.btn-next { background: #e8a84c20; color: #e8a84c; border-color: #e8a84c55; }
+
+.page { display: none; max-width: 1000px; margin: 0 auto; }
+.page.active { display: block; }
+p { color: #c8c4bf; font-size: 18px; line-height: 1.8; margin: 0 0 20px; }
+strong { color: #e8e4df; }
+em { color: #b8b3ab; }
+
+/* math blocks */
+.math-box { background: #1a1714; border: 1px solid #33302a; border-radius: 10px; padding: 20px 24px; margin: 16px 0; overflow-x: auto; }
+.math-box .katex-display { margin: 8px 0; }
+.math-box .katex { color: #e8e4df; font-size: 1.1em; }
+.math-note { font-family: monospace; font-size: 13px; color: #6a6560; margin-top: 10px; line-height: 1.9; }
+.math-note .hi  { color: #e8a84c; }
+.math-note .gr  { color: #70c990; }
+.math-note .pu  { color: #b8a0d8; }
+
+/* override KaTeX colors for dark bg */
+.katex { color: #e8e4df !important; }
+.katex .mord, .katex .mbin, .katex .mrel, .katex .mop,
+.katex .mopen, .katex .mclose, .katex .mpunct { color: inherit; }
+
+.tip { display: flex; gap: 14px; padding: 16px 18px; border-radius: 10px; background: #252219; border: 1px solid #33302a; margin: 20px 0; }
+.tip p { margin: 6px 0 0; color: #b8b3ab; font-size: 14px; }
+.box { padding: 20px; border-radius: 10px; background: #22201a; border: 1px solid #33302a; margin: 20px 0; }
+.label { font-size: 12px; color: #8a8480; font-weight: 600; margin-bottom: 8px; }
+.key { padding: 14px 18px; border-radius: 8px; border-left: 3px solid #e8a84c; background: #e8a84c0a; font-size: 14px; line-height: 1.65; color: #c8c4bf; margin: 20px 0 0; }
+
+/* cards */
+.cards { display: flex; gap: 16px; flex-wrap: wrap; margin: 24px 0; }
+.card { flex: 1 1 260px; padding: 16px; border-radius: 10px; background: #22201a; border: 1px solid; }
+.card-label { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 10px; }
+.card p { font-size: 13px; color: #a09890; margin-top: 12px; margin-bottom: 0; }
+.words { display: flex; gap: 6px; flex-wrap: wrap; }
+.words span { padding: 4px 10px; border-radius: 6px; font-size: 13px; font-weight: 600; transition: all 0.3s; }
+
+/* tokenizer */
+textarea { width: 100%; padding: 12px; border-radius: 8px; border: 1px solid #33302a; background: #1a1714; color: #e8e4df; font-size: 15px; font-family: inherit; resize: vertical; min-height: 48px; outline: none; }
+.tokens { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.tokens span { padding: 5px 10px; border-radius: 6px; font-size: 14px; font-family: monospace; font-weight: 600; white-space: pre; }
+.ids { font-family: monospace; font-size: 13px; color: #7a7570; word-break: break-all; line-height: 1.8; margin-top: 8px; }
+
+/* attention bars */
+.bar-row { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.bar-label { width: 40px; font-size: 13px; text-align: right; }
+.bar-bg { flex: 1; height: 22px; background: #1a1714; border-radius: 4px; overflow: hidden; }
+.bar-fill { height: 100%; border-radius: 4px; transition: width 0.4s ease; }
+.bar-pct { width: 36px; font-size: 12px; color: #8a8480; font-family: monospace; }
+
+/* word buttons */
+.wbtns { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+.wbtns button { padding: 8px 16px; border-radius: 8px; font-size: 15px; font-weight: 700; border: 2px solid #33302a; background: transparent; color: #a09890; cursor: pointer; transition: all 0.2s; }
+.wbtns button.on { border-color: #e8a84c; background: #e8a84c20; color: #e8a84c; }
+.wbtns button.on-purple { border-color: #7a6a9a; background: #7a6a9a20; color: #b8a0d8; }
+
+/* layers */
+input[type=range] { width: 100%; accent-color: #e8a84c; cursor: pointer; }
+
+/* qkv */
+.qkv-row { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 6px; margin-bottom: 8px; }
+.qkv-name { font-weight: 700; font-size: 14px; width: 50px; }
+
+/* info cards */
+.info-pair { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.info-card { flex: 1 1 180px; padding: 12px 14px; border-radius: 8px; }
+.info-title { font-size: 11px; font-weight: 700; letter-spacing: 0.04em; margin-bottom: 6px; }
+.info-desc { font-size: 13px; color: #b8b3ab; line-height: 1.5; }
+
+/* model table */
+.model-row { display: flex; gap: 16px; padding: 8px 12px; border-radius: 6px; background: #1a1714; margin-bottom: 6px; font-size: 12px; }
+
+/* output */
+.cand { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border-radius: 6px; margin-bottom: 4px; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+.cand.on { background: #e8a84c15; border-color: #e8a84c40; }
+#gen-text { font-family: monospace; font-size: 16px; min-height: 32px; margin-bottom: 12px; }
+.gen-btn { padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e8a84c55; cursor: pointer; background: #e8a84c15; color: #e8a84c; }
+.gen-btn:disabled { background: #33302a; cursor: default; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* pipeline */
+.step-btn { width: 100%; display: flex; align-items: center; gap: 12px; padding: 14px 16px; border-radius: 8px; text-align: left; cursor: pointer; border: 2px solid transparent; background: transparent; color: inherit; transition: all 0.25s; margin-bottom: 2px; font-family: inherit; }
+.step-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.step-arrow { text-align: center; font-size: 14px; color: #33302a; line-height: 1; }
+.step-detail { margin: 0 0 4px 34px; padding: 10px 14px; font-size: 13px; color: #b8b3ab; line-height: 1.7; }
+
+/* position demo */
+.sent-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+.sword { display: inline-flex; flex-direction: column; align-items: center; gap: 4px; }
+.sword span { display: inline-block; padding: 6px 14px; border-radius: 6px; font-size: 15px; font-weight: 700; font-family: monospace; }
+.pos-lbl { font-size: 11px; font-family: monospace; color: #e8a84c; opacity: 0.8; height: 16px; }
+.toggle { padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 600; border: 1px solid #e8a84c55; cursor: pointer; background: transparent; color: #a09890; transition: all 0.2s; }
+.toggle.on { background: #e8a84c15; color: #e8a84c; }
+
+/* formula (positional encoding demo) */
+.formula { font-family: monospace; font-size: 14px; color: #c8c4bf; line-height: 2.2; }
+.formula .pos { color: #e8a84c; }
+.formula .result { color: #70c990; border-top: 1px solid #33302a; padding-top: 8px; }
+
+/* layer rows */
+.layer-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; border-radius: 8px; margin-bottom: 4px; transition: all 0.3s; }
+</style>
+</head>
+<body>
+<div class="shell">
+  <header>
+    <span class="logo">TRANSFORMER GUIDE</span>
+    <nav class="dots" id="dots"></nav>
+  </header>
+  <div class="title-bar">
+    <h1 id="title"></h1>
+    <span class="counter" id="counter"></span>
+  </div>
+  <main id="main">
+
+    <!-- PAGE 0: Old vs New -->
+    <div class="page" id="p0">
+      <p>Before Transformers, sequence models used <strong>Recurrent Neural Networks</strong>. Each step $t$ computes a hidden state from the previous one:</p>
+      <div class="math-box">
+        $$h_t = f\!\left(W \cdot h_{t-1} + U \cdot x_t + b\right)$$
+      </div>
+      <p style="margin-top:4px">This creates two hard problems.</p>
+      <div class="cards">
+        <div class="card" style="border-color:#5c3a3a">
+          <div class="card-label" style="color:#c97070">RNN / LSTM — sequential</div>
+          <div class="words" id="seq-words"></div>
+          <p><strong>Vanishing gradients (BPTT):</strong></p>
+          <div class="math-box" style="margin:8px 0; padding:12px 16px">
+            $$\frac{\partial \mathcal{L}}{\partial h_0} = \prod_{t=1}^{T} \frac{\partial h_t}{\partial h_{t-1}}$$
+          </div>
+          <p>Each Jacobian has spectral radius &lt;1 → gradient shrinks exponentially → early tokens contribute nothing.</p>
+          <p style="margin-top:8px"><strong>No parallelism:</strong> $h_{t+1}$ depends on $h_t$ → GPU cores sit idle.</p>
+        </div>
+        <div class="card" style="border-color:#3a5c4a">
+          <div class="card-label" style="color:#70c990">Transformer — parallel</div>
+          <div class="words" id="par-words"></div>
+          <p>All $n$ tokens processed simultaneously via self-attention. $\mathcal{O}(n^2 d)$ but fully GPU-parallelizable. Every token attends to every other token in one forward pass — no recurrence, no vanishing gradient through time.</p>
+        </div>
+      </div>
+      <div class="key"><strong>Vaswani et al. (2017)</strong> — "Attention Is All You Need." Eliminated recurrence entirely. English→German translation at the same BLEU as the best RNN ensembles, trained in 3.5 days on 8 GPUs instead of weeks.</div>
+    </div>
+
+    <!-- PAGE 1: Tokenization -->
+    <div class="page" id="p1">
+      <p>A neural network operates on real-valued vectors — raw text must be converted to integers first. The tokenization strategy directly affects model capacity, multilingual coverage, and inference cost.</p>
+      <div class="box">
+        <div class="label">Live tokenizer — type anything:</div>
+        <textarea id="tok-input">I love learning about AI!</textarea>
+        <div style="display:flex; justify-content:space-between; margin-top:16px">
+          <span class="label">Tokens:</span>
+          <span class="label" id="tok-count" style="font-family:monospace"></span>
+        </div>
+        <div class="tokens" id="tok-out"></div>
+        <div style="font-size:11px; color:#6a6560; margin-top:8px">· = space prefix. Long words split at ~60% to simulate BPE sub-word splitting.</div>
+        <div class="label" style="margin-top:16px">Token IDs (simulated hash):</div>
+        <div class="ids" id="tok-ids"></div>
+      </div>
+      <div class="tip">
+        <span style="font-size:22px; flex-shrink:0">💡</span>
+        <div>
+          <strong style="color:#e8e4df">Byte Pair Encoding (BPE):</strong>
+          <p>Initialize vocab = all characters. Greedily merge the most frequent adjacent pair. Repeat ~50k times. "unhappiness" → ["un", "happiness"] or ["un","happy","ness"] depending on corpus. Handles any unseen word by decomposing into known sub-units.</p>
+        </div>
+      </div>
+      <p>The embedding matrix has size:</p>
+      <div class="math-box">
+        $$E \in \mathbb{R}^{V \times d_{\text{model}}}$$
+      </div>
+      <div class="key"><strong>Vocab size trade-off:</strong> larger $V$ → fewer tokens per sequence (faster) but larger $E$. GPT-2 = 50,257 · GPT-4 ≈ 100,256 · Llama 3 = 128,256. Bigger vocabs improve multilingual coverage.</div>
+    </div>
+
+    <!-- PAGE 2: Embeddings -->
+    <div class="page" id="p2">
+      <p>Token IDs are arbitrary labels. An <strong>embedding</strong> maps each ID to a dense vector in $\mathbb{R}^{d_{\text{model}}}$ where geometric proximity encodes semantic similarity. These are <em>learned parameters</em>.</p>
+      <div class="math-box">
+        $$E \in \mathbb{R}^{V \times d_{\text{model}}}, \qquad \text{embed}(\text{id}) = E[\text{id}]$$
+        $$\cos(\mathbf{a},\, \mathbf{b}) = \frac{\mathbf{a} \cdot \mathbf{b}}{\|\mathbf{a}\| \cdot \|\mathbf{b}\|} \;\in\; [-1,\, 1]$$
+      </div>
+      <div class="box">
+        <div class="label">2D projection — hover to inspect (real: $d_{\text{model}} = 512$–$8192$ dims):</div>
+        <svg id="emb-map" viewBox="0 0 100 100" style="width:100%; max-width:440px; background:#1a1714; border-radius:8px; border:1px solid #33302a"></svg>
+      </div>
+      <div class="box">
+        <div class="label">Linear structure in embedding space — emerges from training corpus statistics:</div>
+        <button class="toggle" onclick="document.getElementById('emb-math').hidden=false; this.style.display='none';" style="font-family:monospace; font-size:15px; font-weight:700; border-color:#e8a84c55; color:#e8a84c">King − Man + Woman = ?</button>
+        <div id="emb-math" hidden style="margin-top:16px">
+          <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+            <span style="padding:6px 14px; border-radius:6px; background:#3a5c4a30; color:#70c990; font-size:16px; font-weight:700; font-family:monospace">King</span>
+            <span style="color:#8a8480; font-size:16px">−</span>
+            <span style="padding:6px 14px; border-radius:6px; background:#3a5c4a30; color:#70c990; font-size:16px; font-weight:700; font-family:monospace">Man</span>
+            <span style="color:#8a8480; font-size:16px">+</span>
+            <span style="padding:6px 14px; border-radius:6px; background:#3a5c4a30; color:#70c990; font-size:16px; font-weight:700; font-family:monospace">Woman</span>
+            <span style="color:#8a8480; font-size:16px">≈</span>
+            <span style="padding:6px 14px; border-radius:6px; background:#e8a84c20; color:#e8a84c; font-size:16px; font-weight:700; font-family:monospace; border:1px solid #e8a84c55">Queen</span>
+          </div>
+          <p style="font-size:13px; color:#8a8480; margin-top:12px">$\cos\!\left(E[\text{King}]-E[\text{Man}]+E[\text{Woman}],\; E[\text{Queen}]\right) \approx 0.89$. Not programmed — the model discovers this linear structure from co-occurrence statistics. Mikolov et al. (word2vec, 2013).</p>
+        </div>
+      </div>
+      <div class="key">$d_{\text{model}}$ is a core hyperparameter: GPT-2 small = 768 · GPT-3 = 12,288 · Llama 3 70B = 8,192 · PaLM = 18,432. Larger $d$ → more expressive but attention memory scales $\mathcal{O}(n^2 d)$.</div>
+    </div>
+
+    <!-- PAGE 3: Positional Encoding -->
+    <div class="page" id="p3">
+      <p>Self-attention is <strong>permutation-equivariant</strong> — shuffle the input tokens and you get the same output values, just shuffled. Without position info, "Dog bites man" and "Man bites dog" are identical to the model.</p>
+      <div class="box">
+        <div class="label">Same tokens, different order → entirely different meaning:</div>
+        <div id="pos-sents"></div>
+        <button class="toggle" id="pos-toggle" onclick="togglePos()">Show position encoding</button>
+      </div>
+      <div class="box">
+        <div class="label">Sinusoidal positional encoding — Vaswani et al. (2017):</div>
+        <div class="math-box">
+          $$\text{PE}(\text{pos},\; 2i) = \sin\!\left(\frac{\text{pos}}{10000^{2i/d_{\text{model}}}}\right)$$
+          $$\text{PE}(\text{pos},\; 2i+1) = \cos\!\left(\frac{\text{pos}}{10000^{2i/d_{\text{model}}}}\right)$$
+        </div>
+        <div class="math-note">pos = token index · i = dimension index (0 to d<sub>model</sub>/2)<br>Each dimension oscillates at a different frequency → unique fingerprint per position.</div>
+        <p style="font-size:13px; color:#8a8480; margin-top:10px">Key property: $\text{PE}(\text{pos}+k)$ can be written as a linear function of $\text{PE}(\text{pos})$ → dot products between PE vectors encode relative distance. Modern models often use <strong>RoPE</strong> (Llama) or <strong>ALiBi</strong> instead.</p>
+      </div>
+      <div class="box">
+        <div class="label">What gets added per token:</div>
+        <div class="formula">
+          <div>embed("cat")  → [0.2, −0.5, 0.8, ...]  <span style="color:#5a5550; font-size:12px">semantic meaning</span></div>
+          <div class="pos">PE(pos=2)   → [sin(2/1), cos(2/1), sin(2/100), ...]  <span style="color:#5a5550; font-size:12px">position signal</span></div>
+          <div class="result">$\mathbf{x}_2$        = element-wise sum  <span style="color:#5a5550; font-size:12px">fed into layer 1 attention</span></div>
+        </div>
+      </div>
+      <div class="key">The sinusoidal basis ensures $\text{PE}(\text{pos}+k) = T \cdot \text{PE}(\text{pos})$ for some linear transform $T$ that depends only on $k$, not $\text{pos}$ — so relative distances are learnable from attention dot products.</div>
+    </div>
+
+    <!-- PAGE 4: Attention -->
+    <div class="page" id="p4">
+      <p><strong>Scaled Dot-Product Attention</strong> is the core operation. Each token projects to three vectors Q, K, V via learned weight matrices. $Q \cdot K^\top$ scores how much each token attends to each other; softmax normalizes; the result weights V.</p>
+      <div class="math-box">
+        $$\text{Attention}(Q,\, K,\, V) = \text{softmax}\!\left(\frac{Q K^\top}{\sqrt{d_k}}\right) V$$
+      </div>
+      <div class="math-note"><span class="hi">Q, K</span> ∈ ℝ<sup>n×d_k</sup> &nbsp; <span class="hi">V</span> ∈ ℝ<sup>n×d_v</sup> &nbsp; output ∈ ℝ<sup>n×d_v</sup><br>
+      <span class="pu">√d_k</span> scaling: without it, dot products grow large → softmax saturates → gradients ≈ 0</div>
+      <div class="box">
+        <div class="label">Click a word — see its attention distribution (one head, one layer):</div>
+        <div class="wbtns" id="att-btns"></div>
+        <div id="att-label" class="label" style="margin-top:12px"></div>
+        <div id="att-heat" style="margin-top:8px; overflow-x:auto"></div>
+      </div>
+      <div class="box">
+        <div class="label">What happens without the √d_k scaling?</div>
+        <div style="display:flex; align-items:center; gap:16px; margin-bottom:14px">
+          <span style="font-size:13px; color:#8a8480; font-family:monospace">d_k =</span>
+          <input type="range" id="dk-slider" min="0" max="5" step="1" value="2" oninput="renderDkScale()" style="flex:1">
+          <span id="dk-val" style="font-family:monospace; font-size:15px; color:#e8a84c; width:48px">64</span>
+        </div>
+        <div style="display:flex; gap:16px">
+          <div style="flex:1">
+            <div class="label" style="color:#c97070; margin-bottom:6px">Without ÷√d_k</div>
+            <div id="dk-unscaled"></div>
+          </div>
+          <div style="flex:1">
+            <div class="label" style="color:#5b8a72; margin-bottom:6px">With ÷√d_k (correct)</div>
+            <div id="dk-scaled"></div>
+          </div>
+        </div>
+        <div style="font-size:12px; color:#6a6560; margin-top:10px" id="dk-note"></div>
+      </div>
+      <div class="box">
+        <div class="label">Projections — each token $\mathbf{x}_i \in \mathbb{R}^{d_{\text{model}}}$ → Q, K, V:</div>
+        <div class="qkv-row" style="background:#e8a84c10; border:1px solid #e8a84c30">
+          <span class="qkv-name" style="color:#e8a84c">Q</span>
+          <span style="font-size:13px; color:#b8b3ab">$\mathbf{x} W_Q$,&ensp; $W_Q \in \mathbb{R}^{d_{\text{model}} \times d_k}$ &emsp; "what am I searching for?"</span>
+        </div>
+        <div class="qkv-row" style="background:#5b8a7210; border:1px solid #5b8a7230">
+          <span class="qkv-name" style="color:#5b8a72">K</span>
+          <span style="font-size:13px; color:#b8b3ab">$\mathbf{x} W_K$,&ensp; $W_K \in \mathbb{R}^{d_{\text{model}} \times d_k}$ &emsp; "what do I advertise?"</span>
+        </div>
+        <div class="qkv-row" style="background:#7a6a9a10; border:1px solid #7a6a9a30">
+          <span class="qkv-name" style="color:#7a6a9a">V</span>
+          <span style="font-size:13px; color:#b8b3ab">$\mathbf{x} W_V$,&ensp; $W_V \in \mathbb{R}^{d_{\text{model}} \times d_v}$ &emsp; "what do I contribute?"</span>
+        </div>
+        <div style="margin-top:14px; font-size:13px; color:#8a8480; line-height:1.8">
+          <strong>Multi-Head Attention:</strong><br>
+          $\text{MultiHead}(Q,K,V) = \text{Concat}(\text{head}_1, \ldots, \text{head}_h)\, W_O$<br>
+          $W_O \in \mathbb{R}^{hd_v \times d_{\text{model}}}$. Each head learns different relationship types.
+        </div>
+      </div>
+      <div class="key">GPT-3: $d_{\text{model}}=12{,}288$, $h=96$ heads, $d_k=d_v=128$. Attention matrix is $n \times n$ — quadratic in context length. 100k tokens → 10B values per layer. <strong>FlashAttention</strong> (Dao et al., 2022) avoids materializing the full matrix, reducing memory from $\mathcal{O}(n^2)$ to $\mathcal{O}(n)$.</div>
+    </div>
+
+    <!-- PAGE 5: Feed-Forward -->
+    <div class="page" id="p5">
+      <p>After attention aggregates information <em>across</em> tokens, each position is processed <strong>independently</strong> by a two-layer FFN. Geva et al. (2021) showed FFN layers function as key-value memories — the model's factual knowledge is largely stored here.</p>
+      <div class="math-box">
+        $$\text{FFN}(\mathbf{x}) = \text{GELU}(\mathbf{x} W_1 + b_1)\, W_2 + b_2$$
+      </div>
+      <div class="math-note">
+        <span class="hi">W₁</span> ∈ ℝ<sup>d_model × d_ff</sup> &nbsp; <span class="hi">W₂</span> ∈ ℝ<sup>d_ff × d_model</sup> &nbsp; <span class="pu">d_ff = 4 × d_model</span> (standard ratio)<br>
+        GPT-2: 768→3072 · GPT-3: 12288→49152<br>
+        GELU(x) = x · Φ(x) &nbsp; smoother than ReLU, better empirically for LLMs
+      </div>
+      <div class="tip">
+        <span style="font-size:22px; flex-shrink:0">💡</span>
+        <div>
+          <strong style="color:#e8e4df">Why expand then compress?</strong>
+          <p>Attention handled cross-token communication. The FFN refines each token individually — expanding to $d_{\text{ff}}$ (4× wider) to apply nonlinearity, then compressing back. $W_1$ rows act as "keys" that activate on patterns, $W_2$ rows as "values" that output the corresponding information.</p>
+        </div>
+      </div>
+      <div class="box">
+        <div class="label">Click a word — see the semantic transformation:</div>
+        <div class="wbtns" id="ff-btns"></div>
+        <div class="info-pair" id="ff-cards"></div>
+      </div>
+      <div class="key">GPT-3's 175B params split roughly 2/3 FFN, 1/3 attention. <strong>Mixture of Experts (MoE)</strong>: activate only $k$ of $n$ expert FFNs per token (Mixtral: 2 of 8). Same quality as a dense model at $1/k$ the compute — GPT-4 reportedly uses MoE.</div>
+    </div>
+
+    <!-- PAGE 6: Layers -->
+    <div class="page" id="p6">
+      <p>One Transformer block = Attention + FFN. Two more operations are essential: <strong>residual connections</strong> and <strong>Layer Normalization</strong>. Without them, training 96-layer networks is numerically unstable.</p>
+      <div class="math-box">
+        $$\mathbf{x} \leftarrow \mathbf{x} + \text{Attention}\!\left(\text{LayerNorm}(\mathbf{x})\right)$$
+        $$\mathbf{x} \leftarrow \mathbf{x} + \text{FFN}\!\left(\text{LayerNorm}(\mathbf{x})\right)$$
+        $$\text{LayerNorm}(\mathbf{x}) = \boldsymbol{\gamma} \odot \frac{\mathbf{x} - \mu}{\sigma + \varepsilon} + \boldsymbol{\beta}$$
+      </div>
+      <div class="math-note">μ, σ = mean and std across d<sub>model</sub> dimension (per token)<br>γ, β = learned scale and shift parameters</div>
+      <div class="tip">
+        <span style="font-size:22px; flex-shrink:0">💡</span>
+        <div>
+          <strong style="color:#e8e4df">Why residuals prevent vanishing gradients:</strong>
+          $$\frac{\partial \mathcal{L}}{\partial \mathbf{x}} = \frac{\partial \mathcal{L}}{\partial \text{out}} \cdot \left(1 + \frac{\partial F}{\partial \mathbf{x}}\right)$$
+          <p>The $+1$ ensures gradient magnitude $\geq 1$ even when the sublayer contributes nothing ($\partial F/\partial \mathbf{x} \approx 0$). This is what makes 96-layer training stable.</p>
+        </div>
+      </div>
+      <div class="box">
+        <div class="label">Drag — each active layer builds deeper abstraction:</div>
+        <input type="range" id="layer-slider" min="0" max="5" value="2" oninput="renderLayers()">
+        <div id="layer-rows" style="margin-top:16px"></div>
+      </div>
+      <div class="box">
+        <div class="label">Real model architectures:</div>
+        <div class="model-row"><span style="width:90px; font-weight:700">GPT-2 XL</span><span style="width:44px; color:#8a8480">2019</span><span style="color:#7a6a9a; font-family:monospace">48L · 25h · d=1600</span><span style="color:#e8a84c; font-family:monospace; margin-left:auto">1.5B</span></div>
+        <div class="model-row"><span style="width:90px; font-weight:700">GPT-3</span><span style="width:44px; color:#8a8480">2020</span><span style="color:#7a6a9a; font-family:monospace">96L · 96h · d=12288</span><span style="color:#e8a84c; font-family:monospace; margin-left:auto">175B</span></div>
+        <div class="model-row"><span style="width:90px; font-weight:700">Llama 3 70B</span><span style="width:44px; color:#8a8480">2024</span><span style="color:#7a6a9a; font-family:monospace">80L · 64h · d=8192</span><span style="color:#e8a84c; font-family:monospace; margin-left:auto">70B</span></div>
+        <div class="model-row"><span style="width:90px; font-weight:700">GPT-4</span><span style="width:44px; color:#8a8480">2023</span><span style="color:#7a6a9a; font-family:monospace">~120L · MoE</span><span style="color:#e8a84c; font-family:monospace; margin-left:auto">~1.8T</span></div>
+      </div>
+      <div class="key"><strong>Pre-LN vs Post-LN:</strong> Post-LN (original paper) applies LayerNorm after the residual add — slightly better when perfectly tuned but brittle. Pre-LN (GPT-2+) applies LN before the sublayer — more stable. Both add a final LayerNorm before the output head.</div>
+    </div>
+
+    <!-- PAGE 7: Output -->
+    <div class="page" id="p7">
+      <p>The final layer's hidden state is projected to a logit vector of size $V$ via a linear layer — <strong>weight-tied</strong> with the embedding matrix $E$. Softmax converts logits to a probability distribution over the next token.</p>
+      <div class="math-box">
+        $$\text{logits} = \mathbf{x}_{\text{final}} \cdot E^\top \;\in\; \mathbb{R}^V$$
+        $$P(t_i) = \frac{\exp(\ell_i / \tau)}{\displaystyle\sum_j \exp(\ell_j / \tau)}, \qquad \tau > 0 \text{ (temperature)}$$
+        $$\mathcal{L} = -\frac{1}{n}\sum_{t=1}^{n} \log P\!\left(t_t \;\middle|\; t_1, \ldots, t_{t-1}\right)$$
+      </div>
+      <div class="box">
+        <div class="label">Input: "The cat sat on the ___" — adjust temperature τ:</div>
+        <div style="display:flex; align-items:center; gap:16px; margin:12px 0 16px">
+          <span style="font-size:14px; color:#8a8480; font-family:monospace; flex-shrink:0">τ =</span>
+          <input type="range" id="temp-slider" min="0.1" max="2.5" step="0.05" value="1.0" style="flex:1" oninput="document.getElementById('temp-val').textContent=parseFloat(this.value).toFixed(2); document.getElementById('temp-note').textContent=tempNote(this.value); renderCands()">
+          <span id="temp-val" style="font-family:monospace; font-size:16px; color:#e8a84c; width:44px">1.00</span>
+          <span id="temp-note" style="font-size:12px; color:#6a6560; min-width:80px">raw model</span>
+        </div>
+        <div id="out-cands"></div>
+        <div id="out-result" style="margin-top:12px; font-size:14px; color:#70c990"></div>
+      </div>
+      <div class="box">
+        <div class="label">Decoding strategies — argmax is rarely used in practice:</div>
+        <div style="font-size:13px; color:#b8b3ab; line-height:2">
+          <div><strong style="color:#e8a84c">Temperature $\tau$:</strong> $\tau \to 0$ = greedy argmax · $\tau = 1$ = raw softmax · $\tau > 1$ = uniform. Chat: $\tau \approx 0.7$. Code: $\tau \approx 0.1$.</div>
+          <div><strong style="color:#e8a84c">Top-$k$:</strong> zero out all but the $k$ highest logits before softmax. Simple; requires tuning $k$.</div>
+          <div><strong style="color:#e8a84c">Top-$p$ (nucleus):</strong> keep smallest set of tokens with cumulative $P \geq p$. Width adapts — narrow when confident, wide when uncertain. $p = 0.9$ is typical.</div>
+          <div><strong style="color:#e8a84c">Beam search:</strong> maintain $b$ candidate sequences. Better for translation; produces generic text for open-ended generation.</div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="label">Autoregressive generation — one token at a time:</div>
+        <div id="gen-text"><span style="color:#8a8480">The cat sat on the </span><span id="gen-out" style="color:#e8a84c"></span></div>
+        <button class="gen-btn" id="gen-btn" onclick="startGen()">Generate →</button>
+      </div>
+      <div class="key"><strong>KV-cache:</strong> cached $K$ and $V$ tensors from previous tokens avoid recomputing them each step. Reduces per-token cost from $\mathcal{O}(n \cdot L)$ to $\mathcal{O}(L)$. Without it, generation over 4096 tokens would be ~4096× slower.</div>
+    </div>
+
+    <!-- PAGE 8: Full Architecture -->
+    <div class="page" id="p8">
+      <p>Complete decoder-only Transformer (GPT family). Click any stage for the math.</p>
+      <div class="box">
+        <div id="pipeline"></div>
+      </div>
+      <div class="box">
+        <div class="label">Parameter count per block (ignoring biases and LayerNorm):</div>
+        <div class="math-box">
+          $$\text{params per block} \approx 4 \cdot d_{\text{model}}^2 \;(\text{attention}) + 8 \cdot d_{\text{model}}^2 \;(\text{FFN}) = 12\, d_{\text{model}}^2$$
+          $$\text{total} \approx L \times 12\, d_{\text{model}}^2 + V \times d_{\text{model}} \;(\text{embedding})$$
+        </div>
+        <div class="math-note">GPT-3 check: 96 × 12 × 12288² + 50257 × 12288 ≈ 174B + 0.6B ≈ <span class="gr">175B ✓</span></div>
+      </div>
+      <div class="key"><strong>Variants:</strong> Encoder-only (BERT) — bidirectional attention, no causal mask, used for classification/embedding. Encoder-decoder (T5, original paper) — cross-attention from decoder to encoder, used for seq2seq. All share attention + FFN + residual + LN building blocks.</div>
+    </div>
+
+  </main>
+  <footer>
+    <button class="btn" id="btn-back" onclick="go(-1)">← Back</button>
+    <button class="btn btn-next" id="btn-next" onclick="go(1)">Next →</button>
+  </footer>
+</div>
+
+<script>
+/* ===== NAVIGATION ===== */
+const TITLES = [
+  "The Old Way vs Transformers",
+  "Step 1: Tokenization",
+  "Step 2: Embeddings",
+  "Step 3: Positional Encoding",
+  "Step 4: Self-Attention",
+  "Step 5: Feed-Forward Network",
+  "Step 6: Stacking Layers",
+  "Step 7: Predicting Output",
+  "The Full Architecture",
+];
+let page = 0;
+const N = TITLES.length;
+
+function go(d) { setPage(page + d); }
+
+function setPage(p) {
+  page = Math.max(0, Math.min(N - 1, p));
+  document.querySelectorAll('.page').forEach((el, i) => el.classList.toggle('active', i === page));
+  document.getElementById('title').textContent = TITLES[page];
+  document.getElementById('counter').textContent = (page + 1) + ' / ' + N;
+  const bb = document.getElementById('btn-back');
+  const bn = document.getElementById('btn-next');
+  bb.style.opacity = page === 0 ? '0.3' : '1';
+  bb.disabled = page === 0;
+  bn.style.opacity = page === N - 1 ? '0.3' : '1';
+  bn.disabled = page === N - 1;
+  bn.className = page === N - 1 ? 'btn' : 'btn btn-next';
+  renderDots();
+  document.getElementById('main').scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function renderDots() {
+  const el = document.getElementById('dots');
+  el.innerHTML = '';
+  for (let i = 0; i < N; i++) {
+    const b = document.createElement('button');
+    b.style.width = (i === page ? '22px' : '8px');
+    b.style.background = i === page ? '#e8a84c' : i < page ? '#5b8a72' : '#33302a';
+    b.onclick = () => setPage(i);
+    el.appendChild(b);
+  }
+}
+
+/* ===== PAGE 0: ANIMATIONS ===== */
+const W = ["The", "cat", "sat", "on", "the", "mat"];
+function initP0() {
+  const seq = document.getElementById('seq-words');
+  const par = document.getElementById('par-words');
+  W.forEach(w => { seq.innerHTML += `<span>${w}</span>`; par.innerHTML += `<span>${w}</span>`; });
+  let si = 0;
+  setInterval(() => {
+    seq.querySelectorAll('span').forEach((s, j) => {
+      s.style.background = j === si ? '#c97070' : j < si ? '#3d2e2e' : '#2a2420';
+      s.style.color = j === si ? '#fff' : j < si ? '#7a6a6a' : '#5a504a';
+    });
+    si = (si + 1) % W.length;
+  }, 700);
+  let on = false;
+  setInterval(() => {
+    on = !on;
+    par.querySelectorAll('span').forEach(s => {
+      s.style.background = on ? '#3a6a4a' : '#2a2420';
+      s.style.color = on ? '#c0f0d0' : '#5a504a';
+    });
+  }, 1200);
+}
+
+/* ===== PAGE 1: TOKENIZER ===== */
+const PAL = ["#5b8a72","#7a6a9a","#8a7a5a","#5a7a8a","#8a5a6a","#6a8a5a","#8a6a5a","#5a6a8a"];
+function tokenize(s) {
+  if (!s) return [];
+  const out = [], re = /([A-Za-z]+(?:'[a-z]+)?|[0-9]+|[^\sA-Za-z0-9]|\s+)/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const t = m[0];
+    if (/^[A-Za-z]/.test(t) && t.length > 5) { const mid = Math.ceil(t.length * 0.6); out.push(t.slice(0, mid), t.slice(mid)); }
+    else out.push(t);
+  }
+  return out;
+}
+function hashId(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff; return h; }
+function renderTok() {
+  const tokens = tokenize(document.getElementById('tok-input').value);
+  const el = document.getElementById('tok-out');
+  el.innerHTML = '';
+  tokens.forEach((t, i) => {
+    const c = PAL[i % PAL.length], bright = c.replace(/5/g, 'b').replace(/6/g, 'c');
+    el.innerHTML += `<span style="background:${c}25; color:${bright}; border:1px solid ${c}40">${t.replace(/ /g, '·')}</span>`;
+  });
+  document.getElementById('tok-count').textContent = tokens.length + ' token' + (tokens.length !== 1 ? 's' : '');
+  document.getElementById('tok-ids').textContent = '[' + tokens.map(hashId).join(', ') + ']';
+}
+
+/* ===== PAGE 2: EMBEDDINGS MAP ===== */
+function initEmb() {
+  const pts = [{w:"King",x:72,y:35},{w:"Queen",x:80,y:40},{w:"Man",x:50,y:55},{w:"Woman",x:58,y:60},{w:"Apple",x:20,y:80},{w:"Banana",x:25,y:75},{w:"Car",x:75,y:85}];
+  const svg = document.getElementById('emb-map'), ns = "http://www.w3.org/2000/svg";
+  [20,40,60,80].forEach(v => {
+    ['x1,y1,x2,y2'.split(',')].forEach(() => {
+      const l = document.createElementNS(ns,'line'); l.setAttribute('x1',v); l.setAttribute('y1',10); l.setAttribute('x2',v); l.setAttribute('y2',95); l.setAttribute('stroke','#2a2720'); l.setAttribute('stroke-width','0.3'); svg.appendChild(l);
+      const l2 = document.createElementNS(ns,'line'); l2.setAttribute('x1',5); l2.setAttribute('y1',v); l2.setAttribute('x2',95); l2.setAttribute('y2',v); l2.setAttribute('stroke','#2a2720'); l2.setAttribute('stroke-width','0.3'); svg.appendChild(l2);
+    });
+  });
+  [{cx:70,cy:47,rx:18,ry:18,s:'#5b8a72',l:'royalty',lx:70,ly:27},{cx:22,cy:77,rx:12,ry:10,s:'#c9a040',l:'fruit',lx:22,ly:67}].forEach(c => {
+    const e = document.createElementNS(ns,'ellipse');
+    ['cx','cy','rx','ry'].forEach(a => e.setAttribute(a, c[a]));
+    e.setAttribute('fill','none'); e.setAttribute('stroke',c.s); e.setAttribute('stroke-width','0.4'); e.setAttribute('stroke-dasharray','2 2'); e.setAttribute('opacity','0.5');
+    svg.appendChild(e);
+    const t = document.createElementNS(ns,'text'); t.setAttribute('x',c.lx); t.setAttribute('y',c.ly); t.setAttribute('fill',c.s); t.setAttribute('font-size','3.5'); t.setAttribute('text-anchor','middle'); t.setAttribute('opacity','0.7'); t.textContent = c.l; svg.appendChild(t);
+  });
+  pts.forEach(p => {
+    const g = document.createElementNS(ns,'g'); g.style.cursor = 'pointer';
+    const ci = document.createElementNS(ns,'circle'); ci.setAttribute('cx',p.x); ci.setAttribute('cy',p.y); ci.setAttribute('r','1.8'); ci.setAttribute('fill','#c0b8a8'); ci.style.transition = 'all 0.2s';
+    const tx = document.createElementNS(ns,'text'); tx.setAttribute('x',p.x); tx.setAttribute('y',p.y-3.5); tx.setAttribute('fill','#a09890'); tx.setAttribute('font-size','3.5'); tx.setAttribute('text-anchor','middle'); tx.textContent = p.w;
+    g.appendChild(ci); g.appendChild(tx);
+    g.onmouseenter = () => { ci.setAttribute('r','2.5'); ci.setAttribute('fill','#f0c860'); tx.setAttribute('fill','#f0c860'); tx.setAttribute('font-weight','700'); };
+    g.onmouseleave = () => { ci.setAttribute('r','1.8'); ci.setAttribute('fill','#c0b8a8'); tx.setAttribute('fill','#a09890'); tx.removeAttribute('font-weight'); };
+    svg.appendChild(g);
+  });
+}
+
+/* ===== PAGE 3: POSITIONAL ===== */
+let showPos = false;
+function renderPos() {
+  const sents = [{words:["Dog","bites","man"],c:"#5b8a72"},{words:["Man","bites","dog"],c:"#c97070"}];
+  const el = document.getElementById('pos-sents');
+  el.innerHTML = '';
+  sents.forEach(s => {
+    let row = '<div class="sent-row">';
+    s.words.forEach((w, i) => {
+      const bright = s.c.replace(/5/g,'b').replace(/6/g,'c');
+      row += `<div class="sword"><span style="background:${s.c}25; color:${bright}; border:1px solid ${s.c}40">${w}</span><div class="pos-lbl">${showPos ? 'pos '+i : ''}</div></div>`;
+    });
+    el.innerHTML += row + '</div>';
+  });
+  const btn = document.getElementById('pos-toggle');
+  btn.textContent = showPos ? 'Hide position encoding' : 'Show position encoding';
+  btn.className = showPos ? 'toggle on' : 'toggle';
+}
+function togglePos() { showPos = !showPos; renderPos(); }
+
+/* ===== PAGE 4: ATTENTION ===== */
+const ATT_W = {0:[.60,.15,.05,.05,.10,.05],1:[.15,.30,.15,.05,.05,.30],2:[.05,.30,.30,.20,.05,.10],3:[.05,.05,.15,.20,.15,.40],4:[.10,.05,.05,.15,.30,.35],5:[.05,.30,.10,.20,.10,.25]};
+let attFocus = 1;
+function renderAtt() {
+  const btns = document.getElementById('att-btns');
+  btns.innerHTML = '';
+  W.forEach((w, i) => {
+    btns.innerHTML += `<button class="${i===attFocus?'on':''}" onclick="attFocus=${i}; renderAtt()">${w}</button>`;
+  });
+  document.getElementById('att-label').textContent = `Row = query (FROM). Col = key (TO). Focused row: "${W[attFocus]}"`;
+
+  const heat = document.getElementById('att-heat');
+  const cols = W.length;
+  const cellSize = 'minmax(44px,1fr)';
+  heat.style.display = 'grid';
+  heat.style.gridTemplateColumns = `52px ${Array(cols).fill(cellSize).join(' ')}`;
+  heat.style.gap = '3px';
+  let html = '<div></div>';
+  W.forEach(w => {
+    html += `<div style="font-size:11px; font-family:monospace; color:#8a8480; text-align:center; padding:2px 0; white-space:nowrap">${w}</div>`;
+  });
+  W.forEach((word, row) => {
+    const isRow = row === attFocus;
+    html += `<div style="font-size:11px; font-family:monospace; text-align:right; padding:4px 6px 4px 0; line-height:28px; color:${isRow?'#e8a84c':'#8a8480'}; font-weight:${isRow?700:400}">${word}</div>`;
+    ATT_W[row].forEach((wt, col) => {
+      const isCol = col === attFocus;
+      const border = isRow ? '2px solid #e8a84c88' : isCol ? '2px solid #e8a84c33' : '2px solid transparent';
+      const bg = `rgba(232,168,76,${(0.08 + wt * 0.92).toFixed(2)})`;
+      html += `<div title="${word}→${W[col]}: ${(wt*100).toFixed(0)}%" onclick="attFocus=${row}; renderAtt()" style="height:28px; border-radius:4px; background:${bg}; border:${border}; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; justify-content:center"><span style="font-size:10px; font-family:monospace; color:rgba(255,255,255,${wt > 0.15 ? 0.7 : 0.3})">${(wt*100).toFixed(0)}</span></div>`;
+    });
+  });
+  heat.innerHTML = html;
+}
+
+/* ===== PAGE 5: FEED-FORWARD ===== */
+const FF_B = ["determiner — near 'cat', low information","animate noun — subject, near 'sat'+'mat'","past-tense verb — agent is 'cat'","spatial preposition — links verb to location","determiner — near 'mat', low information","inanimate noun — location surface, receives action"];
+const FF_A = ["signals definite noun phrase start","animate agent, high confidence of 'doing'","completed physical action, likely past","directional relationship, next token is location","specific/known object incoming","resting surface, spatial endpoint of action"];
+let ffActive = null;
+function renderFF() {
+  const btns = document.getElementById('ff-btns');
+  btns.innerHTML = '';
+  W.forEach((w, i) => {
+    btns.innerHTML += `<button class="${i===ffActive?'on-purple':''}" onclick="ffActive=ffActive===${i}?null:${i}; renderFF()">${w}</button>`;
+  });
+  const cards = document.getElementById('ff-cards');
+  if (ffActive === null) { cards.innerHTML = ''; return; }
+  cards.innerHTML = `
+    <div class="info-card" style="background:#5b8a7210; border:1px solid #5b8a7230"><div class="info-title" style="color:#5b8a72">AFTER ATTENTION (input to FFN)</div><div class="info-desc">${FF_B[ffActive]}</div></div>
+    <div style="font-size:20px; color:#6a6560; flex-shrink:0">→</div>
+    <div class="info-card" style="background:#7a6a9a10; border:1px solid #7a6a9a30"><div class="info-title" style="color:#7a6a9a">AFTER FEED-FORWARD (output)</div><div class="info-desc">${FF_A[ffActive]}</div></div>`;
+}
+
+/* ===== PAGE 6: LAYERS ===== */
+const LAYERS = [
+  {n:1, d:"Syntax: POS tags, word pairs, punctuation",c:"#5b8a72"},
+  {n:2, d:"Morphology: noun phrases, subject-verb agreement",c:"#6a8a5a"},
+  {n:8, d:"Semantics: who did what to whom, entity types",c:"#8a7a5a"},
+  {n:24,d:"Discourse: coreference, paragraph topic, tone",c:"#8a6a5a"},
+  {n:48,d:"Knowledge: facts, world state, commonsense",c:"#8a5a6a"},
+  {n:96,d:"Abstract: analogies, planning, multi-step inference",c:"#7a6a9a"},
+];
+function renderLayers() {
+  const depth = +document.getElementById('layer-slider').value;
+  const el = document.getElementById('layer-rows');
+  el.innerHTML = '';
+  LAYERS.forEach((l, i) => {
+    const on = i <= depth;
+    el.innerHTML += `<div class="layer-row" style="background:${on?l.c+'15':'transparent'}; border:1px solid ${on?l.c+'30':'transparent'}; opacity:${on?1:0.3}"><div style="width:36px; font-size:12px; font-weight:700; font-family:monospace; text-align:right; color:${l.c}">L${l.n}</div><div style="width:6px; height:6px; border-radius:50%; background:${l.c}; opacity:${on?1:0.3}"></div><div style="font-size:13px; color:${on?'#c8c4bf':'#5a5550'}">${l.d}</div></div>`;
+  });
+}
+
+/* ===== PAGE 7: OUTPUT ===== */
+const CANDS = [{t:"mat",p:.32},{t:"floor",p:.18},{t:"couch",p:.12},{t:"table",p:.09},{t:"rug",p:.07},{t:"bed",p:.05},{t:"chair",p:.04},{t:"grass",p:.03}];
+let picked = null;
+function tempNote(tau) {
+  tau = parseFloat(tau);
+  if (tau < 0.4) return '≈ greedy argmax';
+  if (tau < 0.8) return 'sharp / focused';
+  if (tau < 1.2) return 'raw model';
+  if (tau < 1.8) return 'more diverse';
+  return 'nearly uniform';
+}
+function applyTemp(probs, tau) {
+  const logs = probs.map(p => Math.log(p) / tau);
+  const maxL = Math.max(...logs);
+  const exps = logs.map(l => Math.exp(l - maxL));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(e => e / sum);
+}
+function renderCands() {
+  const tau = parseFloat((document.getElementById('temp-slider') || {value:'1'}).value);
+  const adjusted = applyTemp(CANDS.map(c => c.p), tau);
+  const el = document.getElementById('out-cands');
+  el.innerHTML = '';
+  CANDS.forEach((c, i) => {
+    const p = adjusted[i];
+    const on = picked === c.t;
+    el.innerHTML += `<div class="cand ${on?'on':''}" onclick="picked='${c.t}'; renderCands()"><span style="width:50px; font-size:14px; font-family:monospace; font-weight:700; color:${on?'#e8a84c':'#c8c4bf'}">${c.t}</span><div class="bar-bg" style="height:18px"><div class="bar-fill" style="width:${(p*100).toFixed(1)}%; background:${on?'#e8a84c':'rgba(91,138,114,'+(0.3+p)+')'}; transition:width 0.25s"></div></div><span style="width:36px; font-size:11px; color:#8a8480; font-family:monospace">${(p*100).toFixed(0)}%</span></div>`;
+  });
+  document.getElementById('out-result').innerHTML = picked ? `→ "The cat sat on the <strong>${picked}</strong>"` : '';
+}
+
+let generating = false;
+function startGen() {
+  if (generating) return;
+  generating = true;
+  const seq = ["mat","."," It"," purred"," softly","."];
+  const btn = document.getElementById('gen-btn'), out = document.getElementById('gen-out');
+  btn.disabled = true; btn.textContent = 'Generating...'; out.innerHTML = '';
+  let i = 0;
+  const t = setInterval(() => {
+    if (i < seq.length) { out.innerHTML += seq[i]; i++; }
+    else { clearInterval(t); generating = false; btn.disabled = false; btn.textContent = 'Generate →'; }
+  }, 600);
+}
+
+/* ===== PAGE 8: PIPELINE ===== */
+const PIPE = [
+  {l:"Input text",c:"#6a8a7a",d:"Raw UTF-8 string",dt:'e.g. "The cat sat on the mat"\nNo preprocessing — BPE handles arbitrary characters.'},
+  {l:"Tokenizer (BPE)",c:"#7a8a6a",d:"Text → token IDs ∈ ℕⁿ",dt:'BPE splits into sub-words:\n["The", " cat", " sat", " on", " the", " mat"]\n→ [464, 3797, 3290, 319, 262, 2603]\nVocab size V ≈ 32k–128k depending on model.'},
+  {l:"Embedding + PE",c:"#8a7a6a",d:"IDs → x ∈ ℝⁿˣᵈ",dt:'x_i = E[token_id_i] + PE(i)\nE ∈ ℝ^{V×d_model} (learned)\nPE: sinusoidal (original) or RoPE (modern)\nOutput: n×d_model matrix, one vector per token.'},
+  {l:"Causal Mask",c:"#9a7a5a",d:"Upper triangle → −∞ before softmax",dt:'Decoder-only: token i can only attend to j ≤ i.\nSet attn_scores[i][j] = −∞ for j > i.\nAfter softmax: −∞ → 0, so future tokens are invisible.\nEnables autoregressive generation without data leakage.'},
+  {l:"Self-Attention",c:"#e8a84c",d:"softmax(QKᵀ/√dₖ)·V",dt:'Q = xW_Q,  K = xW_K,  V = xW_V\nScores = QKᵀ / √d_k  ∈ ℝ^{n×n}\nWeights = softmax(Scores + Mask)\nOutput = Weights · V\nMulti-head: h parallel ops → Concat → W_O'},
+  {l:"Feed-Forward",c:"#8a6a7a",d:"GELU(xW₁+b₁)W₂+b₂",dt:'Applied per-token independently.\nd_ff = 4×d_model (expand then compress).\nGELU activation — smoother gradient flow.\nStores factual knowledge as key-value memories.'},
+  {l:"Residual + LayerNorm",c:"#6a7a8a",d:"x = x + Sublayer(LN(x))",dt:'Pre-LN: normalize before sublayer.\nResidual: add original input back after sublayer.\nGradient: ∂L/∂x = ∂L/∂out · (1 + ∂F/∂x)\nThe +1 prevents vanishing gradients through depth.'},
+  {l:"× L layers",c:"#6a6a8a",d:"Repeat attention+FFN L times",dt:'GPT-2: L=48 · GPT-3: L=96 · Llama 3 70B: L=80\nEarly: syntax. Middle: semantics. Late: reasoning.'},
+  {l:"LM Head",c:"#5b8a72",d:"logits = x·Eᵀ ∈ ℝᵛ, then sample",dt:'Weight-tied with embedding matrix E (saves V×d params).\nSoftmax + temperature + top-p → next token ID.\nAppend to context, repeat from attention with KV-cache.\n96×12×12288² + 50257×12288 ≈ 174B + 0.6B ≈ 175B (GPT-3 ✓)'},
+];
+let pipeActive = null;
+function renderPipe() {
+  const el = document.getElementById('pipeline');
+  el.innerHTML = '';
+  PIPE.forEach((s, i) => {
+    const on = pipeActive === i;
+    el.innerHTML += `
+      <button class="step-btn" style="border-color:${on?s.c:'transparent'}; background:${on?s.c+'12':'transparent'}" onclick="pipeActive=pipeActive===${i}?null:${i}; renderPipe()">
+        <div class="step-dot" style="background:${s.c}; opacity:${on?1:0.5}"></div>
+        <div style="flex:1"><div style="font-size:14px; font-weight:700; color:${on?s.c:'#a09890'}">${s.l}</div><div style="font-size:12px; color:#8a8480; margin-top:2px">${s.d}</div></div>
+        <span style="font-size:12px; color:#6a6560; transform:${on?'rotate(90deg)':'none'}; transition:transform 0.2s">▶</span>
+      </button>
+      ${on ? `<div class="step-detail" style="border-left:2px solid ${s.c}40; white-space:pre-line">${s.dt}</div>` : ''}
+      ${i < PIPE.length - 1 ? '<div class="step-arrow">↓</div>' : ''}`;
+  });
+}
+
+/* ===== PAGE 4: dk SCALING ===== */
+const DK_VALS = [1, 4, 16, 64, 128, 512];
+// "unit" dot-product scores (would be the actual values if d_k=1)
+const DK_RAW = [2.4, 0.8, -1.6, -1.2, 0.0, 0.8];
+const DK_LABELS = ["The","cat","sat","on","the","mat"];
+function softmax(arr) {
+  const mx = Math.max(...arr);
+  const e = arr.map(x => Math.exp(x - mx));
+  const s = e.reduce((a,b) => a+b, 0);
+  return e.map(v => v/s);
+}
+function renderDkScale() {
+  const idx = +document.getElementById('dk-slider').value;
+  const dk = DK_VALS[idx];
+  document.getElementById('dk-val').textContent = dk;
+  // raw dot-products scale with √dk (variance of dot-product ∝ dk)
+  const rawScores = DK_RAW.map(s => s * Math.sqrt(dk));
+  const unscaled = softmax(rawScores);
+  const scaled = softmax(rawScores.map(s => s / Math.sqrt(dk)));
+
+  function drawBars(parentId, probs, color) {
+    const el = document.getElementById(parentId);
+    el.innerHTML = '';
+    probs.forEach((p, i) => {
+      el.innerHTML += `<div class="bar-row" style="margin-bottom:4px"><span class="bar-label" style="color:#a09890">${DK_LABELS[i]}</span><div class="bar-bg"><div class="bar-fill" style="width:${(p*100).toFixed(1)}%; background:${color}; transition:width 0.3s"></div></div><span class="bar-pct">${(p*100).toFixed(0)}%</span></div>`;
+    });
+  }
+  drawBars('dk-unscaled', unscaled, '#c97070');
+  drawBars('dk-scaled',   scaled,   '#5b8a72');
+
+  const max = Math.max(...unscaled);
+  const saturated = max > 0.90;
+  document.getElementById('dk-note').textContent = `d_k=${dk}: raw dot-products ≈ ±${(2.4*Math.sqrt(dk)).toFixed(1)}. Without ÷√d_k, max probability = ${(max*100).toFixed(0)}% → ${saturated?'near one-hot, gradient ≈ 0':'still diffuse'}.`;
+}
+
+/* ===== INIT ===== */
+initP0();
+initEmb();
+renderTok();
+renderPos();
+renderAtt();
+renderFF();
+renderLayers();
+renderCands();
+renderPipe();
+renderDkScale();
+setPage(0);
+document.getElementById('tok-input').addEventListener('input', renderTok);
+document.addEventListener('keydown', e => {
+  if (document.activeElement === document.getElementById('tok-input')) return;
+  if (e.key === 'ArrowRight') go(1);
+  if (e.key === 'ArrowLeft') go(-1);
+});
+
+/* ===== KATEX AUTO-RENDER ===== */
+renderMathInElement(document.body, {
+  delimiters: [
+    { left: '$$', right: '$$', display: true  },
+    { left: '$',  right: '$',  display: false },
+  ],
+  throwOnError: false,
+});
+</script>
+</body>
+</html>
