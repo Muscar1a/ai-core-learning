@@ -1,0 +1,87 @@
+/* Hallmark · theme: Warm Chamomile & E-Ink Parchment · eye-comfort: calibrated · display: roman-serif · accent: antique-terracotta */
+:root {
+  /* Surface & Paper (OKLCH - Warm Chamomile & E-Ink Oatmeal Parchment) */
+  --color-paper:        oklch(93.0% 0.020 78);
+  --color-paper-subtle: oklch(90.5% 0.024 78);
+  --color-paper-hover:  oklch(88.5% 0.028 78);
+  --color-paper-card:   oklch(95.2% 0.016 78);
+  
+  /* Ink & Typography (Deep Espresso Bistre & Warm Umber) */
+  --color-ink:          oklch(26.0% 0.022 60);
+  --color-muted:        oklch(46.0% 0.020 65);
+  --color-dim:          oklch(62.0% 0.016 70);
+  
+  /* Borders & Rules (Calm Tawny Hairlines) */
+  --color-rule:         oklch(84.0% 0.020 78);
+  --color-rule-subtle:  oklch(88.5% 0.018 78);
+  --color-rule-strong:  oklch(74.0% 0.022 75);
+
+  /* Accents (<3% viewport footprint - Warm Antique Terracotta) */
+  --color-accent:       oklch(54.0% 0.135 52);
+  --color-accent-soft:  oklch(90.0% 0.038 52);
+  --color-accent-hover: oklch(49.0% 0.140 52);
+  --color-accent-focus: oklch(47.0% 0.145 52);
+  --color-focus:        oklch(54.0% 0.135 52);
+
+  /* Semantic State Tokens (Eye-Gentle Laurel, Cerulean, Coral) */
+  --color-success:      oklch(52.0% 0.115 145);
+  --color-success-soft: oklch(90.5% 0.032 145);
+  --color-info:         oklch(50.0% 0.105 220);
+  --color-info-soft:    oklch(90.5% 0.030 220);
+  --color-warning:      oklch(58.0% 0.130 75);
+  --color-warning-soft: oklch(91.0% 0.035 75);
+  --color-error:        oklch(54.0% 0.150 25);
+  --color-error-soft:   oklch(90.0% 0.035 25);
+
+  /* Typography Stacks */
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-body:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-outlier: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+
+  /* Type Scale */
+  --text-xs:   0.75rem;     /* 12px */
+  --text-sm:   0.875rem;    /* 14px */
+  --text-base: 0.9375rem;   /* 15px */
+  --text-md:   1.0625rem;   /* 17px */
+  --text-lg:   1.25rem;     /* 20px */
+  --text-xl:   1.625rem;    /* 26px */
+  --text-2xl:  2.125rem;    /* 34px */
+  --text-3xl:  clamp(2.25rem, 5vw, 3.5rem);
+
+  /* 4pt Spacing Scale */
+  --space-3xs: 0.125rem;    /* 2px */
+  --space-2xs: 0.25rem;     /* 4px */
+  --space-xs:  0.5rem;      /* 8px */
+  --space-sm:  0.75rem;     /* 12px */
+  --space-md:  1rem;        /* 16px */
+  --space-lg:  1.5rem;      /* 24px */
+  --space-xl:  2.5rem;      /* 40px */
+  --space-2xl: 4rem;        /* 64px */
+  --space-3xl: 6rem;        /* 96px */
+
+  /* Hairlines & Radii */
+  --rule-hair: 1px;
+  --radius-xs: 3px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-full: 9999px;
+
+  /* Motion & Easings */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in:     cubic-bezier(0.7, 0, 0.84, 0);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-micro:  120ms;
+  --dur-short:  220ms;
+  --dur-normal: 180ms;
+  --dur-long:   420ms;
+
+  /* Named Z-Index Scale */
+  --z-base:     1;
+  --z-raised:   10;
+  --z-dropdown: 100;
+  --z-sticky:   200;
+  --z-modal:    400;
+  --z-toast:    500;
+  --z-tooltip:  600;
+}
