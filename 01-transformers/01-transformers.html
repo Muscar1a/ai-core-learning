@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Deconstructing Transformers — An Architectural Monograph</title>
+<!-- Google Fonts: Newsreader (Display Serif) + IBM Plex Sans (Body) + JetBrains Mono (Technical) -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;0,6..72,700;1,6..72,400&display=swap" rel="stylesheet">
+<!-- KaTeX Mathematics Engine -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+<style>
+/* Hallmark · genre: editorial · macrostructure: Long Document (02) · theme: Warm Chamomile & E-Ink Parchment · enrichment: none · nav: N3 Side-rail · footer: Ft2 Inline · pre-emit critique: P5 H5 E5 S5 R5 V5 */
+:root {
+  /* Surface & Paper (OKLCH - Warm Chamomile & E-Ink Oatmeal Parchment) */
+  --color-paper:        oklch(93.0% 0.020 78);
+  --color-paper-subtle: oklch(90.5% 0.024 78);
+  --color-paper-card:   oklch(95.2% 0.016 78);
+  --color-paper-hover:  oklch(88.5% 0.028 78);
+
+  /* Ink & Typography (Deep Espresso Bistre & Warm Umber) */
+  --color-ink:           oklch(26.0% 0.022 60);
+  --color-ink-secondary: oklch(38.0% 0.020 62);
+  --color-muted:         oklch(48.0% 0.020 65);
+  --color-dim:           oklch(62.0% 0.016 70);
+
+  /* Borders & Rules (Calm Tawny Hairlines) */
+  --color-rule:         oklch(84.0% 0.020 78);
+  --color-rule-subtle:  oklch(88.5% 0.018 78);
+  --color-rule-strong:  oklch(74.0% 0.022 75);
+
+  /* Accents (<3% viewport footprint - Warm Antique Terracotta) */
+  --color-accent:       oklch(54.0% 0.135 52);
+  --color-accent-soft:  oklch(90.0% 0.038 52);
+  --color-accent-hover: oklch(49.0% 0.140 52);
+  --color-accent-focus: oklch(47.0% 0.145 52);
+  --color-focus:        oklch(54.0% 0.135 52);
+
+  /* Semantic State Tokens */
+  --color-success:      oklch(52.0% 0.115 145);
+  --color-success-soft: oklch(90.5% 0.032 145);
+  --color-warning:      oklch(58.0% 0.130 75);
+  --color-warning-soft: oklch(91.0% 0.035 75);
+  --color-error:        oklch(54.0% 0.150 25);
+  --color-error-soft:   oklch(90.0% 0.035 25);
+
+  /* Typography Stacks */
+  --font-display: 'Newsreader', Georgia, serif;
+  --font-body:    'IBM Plex Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-mono:    'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+
+  /* 4pt Spacing Scale */
+  --space-3xs: 0.125rem;
+  --space-2xs: 0.25rem;
+  --space-xs:  0.5rem;
+  --space-sm:  0.75rem;
+  --space-md:  1rem;
+  --space-lg:  1.5rem;
+  --space-xl:  2.5rem;
+  --space-2xl: 4rem;
+
+  /* Hairlines & Radii */
+  --radius-xs: 3px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+
+  /* Transitions */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-short: 180ms;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  overflow-x: clip;
+  width: 100%;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 15.5px;
+  line-height: 1.7;
+  scroll-behavior: smooth;
+}
+
+/* Reading Progress Indicator */
+.reading-progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 0%;
+  background: var(--color-accent);
+  z-index: 600;
+  transition: width 60ms linear;
+  pointer-events: none;
+}
+
+/* Page Layout: N3 Side-Rail + Continuous Monograph */
+.monograph-layout {
+  display: flex;
+  min-height: 100vh;
+  width: 100%;
+}
+
+/* N3 Side-Rail Navigation */
+.toc-rail {
+  width: 280px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 36px 20px 36px 28px;
+  border-right: 1px solid var(--color-rule);
+  background: var(--color-paper);
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Mobile & Portrait Top Bar (Hidden on desktop wide) */
+.rail-top-bar {
+  display: none;
+}
+
+.rail-header {
+  margin-bottom: 24px;
+}
+.rail-pub {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.rail-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: 4px;
+  line-height: 1.3;
+}
+.rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.rail-link {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 8px;
+  border-radius: var(--radius-xs);
+  color: var(--color-ink-secondary);
+  text-decoration: none;
+  font-size: 13px;
+  transition: all var(--dur-short) var(--ease-out);
+}
+.rail-link:hover {
+  background: var(--color-paper-subtle);
+  color: var(--color-ink);
+}
+.rail-link.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.rail-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+.rail-link.active .rail-num {
+  color: var(--color-accent);
+}
+.rail-footer {
+  padding-top: 18px;
+  border-top: 1px solid var(--color-rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+/* Table of Contents Off-Canvas Drawer (Mobile & Portrait) */
+.toc-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: oklch(15% 0.02 60 / 0.45);
+  backdrop-filter: blur(3px);
+  z-index: 500;
+  opacity: 0;
+  transition: opacity 220ms var(--ease-out);
+}
+.toc-backdrop.open {
+  display: block;
+  opacity: 1;
+}
+.toc-drawer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(390px, 86vw);
+  background: var(--color-paper);
+  z-index: 510;
+  transform: translateX(-100%);
+  transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 6px 0 32px oklch(26% 0.022 60 / 0.18);
+  border-right: 1px solid var(--color-rule);
+}
+.toc-drawer.open {
+  transform: translateX(0);
+}
+.drawer-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 20px 20px 14px;
+  border-bottom: 1px solid var(--color-rule);
+  background: var(--color-paper);
+}
+.drawer-pub {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+.drawer-title {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: 3px;
+}
+.drawer-close-btn {
+  background: transparent;
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-xs);
+  width: 32px;
+  height: 32px;
+  font-size: 15px;
+  color: var(--color-ink-secondary);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--dur-short) var(--ease-out);
+}
+.drawer-close-btn:hover {
+  background: var(--color-paper-hover);
+  color: var(--color-ink);
+}
+.drawer-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 14px;
+  -webkit-overflow-scrolling: touch;
+}
+.drawer-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.drawer-link {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--radius-xs);
+  color: var(--color-ink-secondary);
+  text-decoration: none;
+  font-size: 13.5px;
+  transition: all var(--dur-short) var(--ease-out);
+  border: 1px solid transparent;
+}
+.drawer-link:hover {
+  background: var(--color-paper-subtle);
+  color: var(--color-ink);
+}
+.drawer-link.active {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+  font-weight: 600;
+  border-color: var(--color-accent);
+}
+.drawer-num {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-muted);
+  margin-top: 1px;
+}
+.drawer-link.active .drawer-num {
+  color: var(--color-accent);
+}
+.drawer-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.drawer-heading {
+  font-weight: 600;
+  line-height: 1.3;
+}
+.drawer-sub {
+  font-size: 11.5px;
+  color: var(--color-muted);
+  line-height: 1.35;
+}
+.drawer-footer {
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-rule);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+/* Continuous Article Content */
+.monograph-content {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  max-width: 860px;
+  padding: 56px 44px 96px;
+  margin: 0 auto;
+}
+
+/* Monograph Header */
+.monograph-masthead {
+  padding-bottom: 36px;
+  border-bottom: 1px solid var(--color-rule);
+  margin-bottom: 48px;
+}
+.monograph-kicker {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 8px;
+  overflow-wrap: anywhere;
+}
+.monograph-headline {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-size: clamp(28px, 4.5vw, 44px);
+  font-weight: 600;
+  line-height: 1.16;
+  color: var(--color-ink);
+  letter-spacing: -0.02em;
+  margin-bottom: 16px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.monograph-lede {
+  font-size: clamp(15.5px, 2vw, 18px);
+  line-height: 1.62;
+  color: var(--color-ink-secondary);
+  max-width: 68ch;
+}
+.monograph-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Section Rhythm */
+.monograph-section {
+  padding-top: 48px;
+  margin-top: 48px;
+  border-top: 1px solid var(--color-rule-subtle);
+}
+.monograph-section:first-of-type {
+  border-top: none;
+  padding-top: 0;
+  margin-top: 0;
+}
+.section-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  margin-bottom: 6px;
+}
+h2 {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-size: 26px;
+  font-weight: 600;
+  color: var(--color-ink);
+  letter-spacing: -0.015em;
+  line-height: 1.3;
+  margin-bottom: 16px;
+}
+h3 {
+  font-family: var(--font-display);
+  font-style: normal;
+  font-size: 19px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin: 24px 0 10px;
+}
+p {
+  color: var(--color-ink-secondary);
+  margin-bottom: 16px;
+  line-height: 1.75;
+}
+p strong { color: var(--color-ink); font-weight: 600; }
+p em { font-style: normal; text-decoration: underline; text-decoration-color: var(--color-accent); text-underline-offset: 3px; }
+
+/* Mathematical Callout Boxes */
+.math-monograph {
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-rule);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 16px 20px;
+  margin: 20px 0;
+  overflow-x: auto;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+}
+.math-monograph .katex-display {
+  margin: 4px 0 !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  max-width: 100%;
+  -webkit-overflow-scrolling: touch;
+  padding: 6px 0;
+}
+.math-monograph .katex { color: var(--color-ink); font-size: 1.06em; }
+.math-caption {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--color-muted);
+  margin-top: 8px;
+  line-height: 1.5;
+}
+.math-monograph::-webkit-scrollbar,
+.math-monograph .katex-display::-webkit-scrollbar,
+.table-monograph::-webkit-scrollbar {
+  height: 5px;
+}
+.math-monograph::-webkit-scrollbar-thumb,
+.math-monograph .katex-display::-webkit-scrollbar-thumb,
+.table-monograph::-webkit-scrollbar-thumb {
+  background: var(--color-rule-strong);
+  border-radius: 4px;
+}
+
+/* Scholarly Plate / Figure */
+.scholarly-plate {
+  background: var(--color-paper-card);
+  border: 1px solid var(--color-rule);
+  border-radius: var(--radius-sm);
+  padding: 22px;
+  margin: 24px 0;
+}
+.plate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  border-bottom: 1px solid var(--color-rule-subtle);
+  padding-bottom: 8px;
+  margin-bottom: 14px;
+}
+.plate-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-accent);
+}
+.plate-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+/* Buttons & Interactive Elements (8-state compliance) */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--color-rule-strong);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-short) var(--ease-out);
+}
+.btn:hover { background: var(--color-paper-hover); border-color: var(--color-ink); }
+.btn:focus-visible { outline: 2px solid var(--color-focus); outline-offset: 1px; }
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn.primary {
+  background: var(--color-accent);
+  color: #ffffff;
+  border-color: var(--color-accent);
+}
+.btn.primary:hover {
+  background: var(--color-accent-hover);
+  border-color: var(--color-accent-hover);
+}
+
+/* Form inputs */
+textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid var(--color-rule-strong);
+  border-radius: var(--radius-xs);
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  outline: none;
+}
+textarea:focus { border-color: var(--color-accent); box-shadow: 0 0 0 1px var(--color-accent); }
+input[type=range] { width: 100%; accent-color: var(--color-accent); cursor: pointer; }
+
+/* Data Tables */
+.table-monograph {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13.5px;
+  margin: 18px 0;
+  display: block;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+.table-monograph th, .table-monograph td {
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 1px solid var(--color-rule);
+}
+.table-monograph th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-muted);
+  background: var(--color-paper-subtle);
+  white-space: nowrap;
+}
+
+/* Responsive 2-Column Plate Grid */
+.plate-grid-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.rope-readout {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+}
+
+/* Footer Archetype Ft2 (Inline Single Line) */
+.monograph-footer {
+  margin-top: 64px;
+  padding-top: 24px;
+  border-top: 1px solid var(--color-rule);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-muted);
+}
+.monograph-footer a { color: var(--color-accent); text-decoration: none; }
+.monograph-footer a:hover { text-decoration: underline; }
+
+/* Vertical / Portrait Screen & Responsive Scale Adaptations */
+@media (orientation: portrait), (max-width: 1100px) {
+  .monograph-layout {
+    flex-direction: column;
+    width: 100%;
+  }
+  .toc-rail {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    position: sticky;
+    top: 0;
+    z-index: 300;
+    border-right: none;
+    border-bottom: 1px solid var(--color-rule);
+    padding: 10px 16px 8px;
+    background: var(--color-paper);
+    box-shadow: 0 4px 16px -4px oklch(26% 0.022 60 / 0.08);
+  }
+  .rail-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .rail-brand {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+  .rail-title-compact {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-ink);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.25;
+  }
+  .rail-drawer-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--color-rule-strong);
+    background: var(--color-paper-card);
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--color-ink);
+    cursor: pointer;
+    white-space: nowrap;
+    flex-shrink: 0;
+    transition: all var(--dur-short) var(--ease-out);
+  }
+  .rail-drawer-btn:hover {
+    background: var(--color-paper-hover);
+    border-color: var(--color-ink);
+  }
+  .drawer-icon {
+    font-size: 13px;
+    color: var(--color-muted);
+  }
+  .drawer-badge {
+    background: var(--color-accent);
+    color: #ffffff;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10.5px;
+    font-family: var(--font-mono);
+    font-weight: 700;
+  }
+  .rail-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    gap: 6px;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+    width: 100%;
+  }
+  .rail-nav::-webkit-scrollbar { display: none; }
+  .rail-link {
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-size: 12px;
+    padding: 5px 12px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--color-rule-subtle);
+    background: var(--color-paper-card);
+    color: var(--color-ink-secondary);
+    min-height: 32px;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .rail-link.active {
+    background: var(--color-accent);
+    color: var(--color-accent-ink, #ffffff);
+    border-color: var(--color-accent);
+    font-weight: 600;
+  }
+  .rail-link.active .rail-num {
+    color: rgba(255, 255, 255, 0.9);
+  }
+  .rail-header, .rail-footer { display: none !important; }
+  
+  .monograph-content {
+    padding: clamp(24px, 4vw, 44px) clamp(16px, 3.5vw, 32px) 80px;
+    padding-left: max(clamp(16px, 3.5vw, 32px), env(safe-area-inset-left));
+    padding-right: max(clamp(16px, 3.5vw, 32px), env(safe-area-inset-right));
+    max-width: 860px;
+    width: 100%;
+  }
+  .monograph-headline {
+    font-size: clamp(24px, 4.8vw, 38px);
+  }
+  .monograph-lede {
+    font-size: clamp(15px, 2vw, 17px);
+  }
+  .scholarly-plate {
+    padding: clamp(14px, 3vw, 20px);
+    margin: 20px 0;
+  }
+  .math-monograph {
+    padding: 14px 16px;
+    font-size: 0.96em;
+  }
+}
+
+@media (max-width: 768px), (orientation: portrait) and (max-width: 880px) {
+  .plate-grid-2col {
+    grid-template-columns: 1fr;
+    gap: 14px;
+  }
+  .monograph-meta {
+    flex-direction: column;
+    gap: 4px;
+  }
+  .monograph-footer {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .plate-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
+  #ff-cards {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .ff-arrow-icon {
+    text-align: center;
+    transform: rotate(90deg);
+  }
+  #att-btns, #ff-btns {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 480px) {
+  .rail-title-compact {
+    max-width: 170px;
+  }
+  .rail-top-bar {
+    gap: 8px;
+  }
+  .rail-drawer-btn {
+    padding: 5px 8px;
+    font-size: 11px;
+  }
+}
+
+/* Coarse Pointer & Touch Ergonomics */
+@media (pointer: coarse) {
+  .btn {
+    min-height: 42px;
+    padding: 8px 16px;
+  }
+  input[type=range] {
+    min-height: 44px;
+  }
+  .rail-link {
+    min-height: 38px;
+  }
+  .rail-drawer-btn {
+    min-height: 38px;
+  }
+}
+</style>
+</head>
+<body>
+
+<div class="reading-progress-bar" id="reading-progress"></div>
+
+<!-- Table of Contents Slide-Out Drawer (Mobile & Portrait) -->
+<div class="toc-backdrop" id="toc-backdrop" onclick="closeTocDrawer()"></div>
+<div class="toc-drawer" id="toc-drawer" role="dialog" aria-modal="true" aria-label="Table of Contents">
+  <div class="drawer-header">
+    <div>
+      <div class="drawer-pub">INDEX · 11 CHAPTERS</div>
+      <div class="drawer-title">Deconstructing Transformers</div>
+    </div>
+    <button class="drawer-close-btn" onclick="closeTocDrawer()" aria-label="Close Table of Contents">✕</button>
+  </div>
+  <div class="drawer-content">
+    <nav class="drawer-nav" id="drawer-nav">
+      <a href="#sec-00" class="drawer-link active" onclick="closeTocDrawer()">
+        <span class="drawer-num">00</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Why Attention?</span>
+          <span class="drawer-sub">The Sequential Recurrence Bottleneck &amp; $O(1)$ Direct Linking</span>
+        </div>
+      </a>
+      <a href="#sec-01" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">01</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Tokenization</span>
+          <span class="drawer-sub">BPE, WordPiece &amp; SentencePiece Byte Fallback</span>
+        </div>
+      </a>
+      <a href="#sec-02" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">02</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Embeddings</span>
+          <span class="drawer-sub">Vector Space Geometry &amp; Cosine Proximity</span>
+        </div>
+      </a>
+      <a href="#sec-03" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">03</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Rotary Position (RoPE)</span>
+          <span class="drawer-sub">Orthogonal 2D Rotation &amp; Displacement Invariance</span>
+        </div>
+      </a>
+      <a href="#sec-04" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">04</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Self-Attention</span>
+          <span class="drawer-sub">Scaled Dot-Product &amp; $\sqrt{d_k}$ Variance Derivation</span>
+        </div>
+      </a>
+      <a href="#sec-05" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">05</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">MHA &amp; Grouped-Query</span>
+          <span class="drawer-sub">KV Cache VRAM Footprint &amp; 8x Memory Reduction</span>
+        </div>
+      </a>
+      <a href="#sec-06" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">06</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Feed-Forward &amp; SwiGLU</span>
+          <span class="drawer-sub">Associative Factual Memory Retrieval</span>
+        </div>
+      </a>
+      <a href="#sec-07" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">07</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Residuals &amp; RMSNorm</span>
+          <span class="drawer-sub">Gradient Highways &amp; Fused Kernel Optimization</span>
+        </div>
+      </a>
+      <a href="#sec-08" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">08</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Autoregressive Sampling</span>
+          <span class="drawer-sub">Temperature Dynamics &amp; Multinomial Selection</span>
+        </div>
+      </a>
+      <a href="#sec-09" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">09</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">Modern Systems</span>
+          <span class="drawer-sub">FlashAttention SRAM Tiling, MoE &amp; Vision Transformers</span>
+        </div>
+      </a>
+      <a href="#sec-10" class="drawer-link" onclick="closeTocDrawer()">
+        <span class="drawer-num">10</span>
+        <div class="drawer-info">
+          <span class="drawer-heading">System Synthesis</span>
+          <span class="drawer-sub">Complete Computational Graph &amp; Parameter Rules</span>
+        </div>
+      </a>
+    </nav>
+  </div>
+  <div class="drawer-footer">
+    <span>AI Core Learning · First-Principles Analysis</span>
+  </div>
+</div>
+
+<div class="monograph-layout">
+
+  <!-- N3 Side-Rail Sticky Index -->
+  <aside class="toc-rail">
+    <!-- Sticky rail top bar (mobile / portrait mode) -->
+    <div class="rail-top-bar">
+      <div class="rail-brand">
+        <span class="rail-pub">TREATISE · 2026.09</span>
+        <span class="rail-title-compact">Deconstructing Transformers</span>
+      </div>
+      <button class="rail-drawer-btn" id="toc-toggle-btn" onclick="toggleTocDrawer()" aria-label="Open Table of Contents">
+        <span class="drawer-icon">☰</span>
+        <span class="drawer-text">Chapters</span>
+        <span class="drawer-badge" id="drawer-curr-badge">00</span>
+      </button>
+    </div>
+
+    <div class="rail-header">
+      <div class="rail-pub">TREATISE · 2026.09</div>
+      <div class="rail-title">Deconstructing Transformers</div>
+    </div>
+    
+    <nav class="rail-nav" id="rail-nav">
+      <a href="#sec-00" class="rail-link active"><span class="rail-num">00</span><span>Why Attention?</span></a>
+      <a href="#sec-01" class="rail-link"><span class="rail-num">01</span><span>Tokenization</span></a>
+      <a href="#sec-02" class="rail-link"><span class="rail-num">02</span><span>Embeddings</span></a>
+      <a href="#sec-03" class="rail-link"><span class="rail-num">03</span><span>Rotary Position (RoPE)</span></a>
+      <a href="#sec-04" class="rail-link"><span class="rail-num">04</span><span>Self-Attention</span></a>
+      <a href="#sec-05" class="rail-link"><span class="rail-num">05</span><span>MHA & Grouped-Query</span></a>
+      <a href="#sec-06" class="rail-link"><span class="rail-num">06</span><span>Feed-Forward & SwiGLU</span></a>
+      <a href="#sec-07" class="rail-link"><span class="rail-num">07</span><span>Residuals & RMSNorm</span></a>
+      <a href="#sec-08" class="rail-link"><span class="rail-num">08</span><span>Autoregressive Sampling</span></a>
+      <a href="#sec-09" class="rail-link"><span class="rail-num">09</span><span>Modern Systems</span></a>
+      <a href="#sec-10" class="rail-link"><span class="rail-num">10</span><span>System Synthesis</span></a>
+    </nav>
+
+    <div class="rail-footer">
+      <div>AI Core Learning</div>
+      <div style="margin-top:2px;">First-Principles Analysis</div>
+    </div>
+  </aside>
+
+  <!-- Continuous Reading Monograph -->
+  <main class="monograph-content">
+
+    <!-- Masthead -->
+    <header class="monograph-masthead">
+      <div class="monograph-kicker">Theoretical Foundations & Computational Mechanics</div>
+      <h1 class="monograph-headline">Deconstructing the Transformer Architecture</h1>
+      <p class="monograph-lede">An architectural treatise exploring why self-attention replaced recurrence, the mathematical derivation of variance scaling, rotational relative coordinates, and the hardware memory hierarchy governing modern large language models.</p>
+      <div class="monograph-meta">
+        <span>Monograph 01</span> · <span>11 Chapters</span> · <span>Interactive Proofs Included</span>
+      </div>
+    </header>
+
+    <!-- SECTION 00: WHY ATTENTION -->
+    <section class="monograph-section" id="sec-00">
+      <div class="section-meta"><span>Chapter 00</span> · <span>The Architectural Paradigm Shift</span></div>
+      <h2>The Sequential Recurrence Bottleneck</h2>
+      <p>Before 2017, neural sequence processing was dominated by Recurrent Neural Networks (RNNs) and Long Short-Term Memory networks (LSTMs). These systems processed sequential tokens $x_1, x_2, \dots, x_n$ strictly left-to-right. To incorporate information from token $x_1$ into the calculation at token $x_n$, the signal had to traverse an uninterrupted chain of $n$ recurrent state updates:</p>
+      
+      <div class="math-monograph">
+        $$h_t = \tanh(W_{hh} h_{t-1} + W_{xh} x_t), \quad \frac{\partial h_T}{\partial h_1} = \prod_{j=2}^T \frac{\partial h_j}{\partial h_{j-1}} = \prod_{j=2}^T \text{diag}(1 - h_j^2) W_{hh}^T$$
+        <div class="math-caption">Equation 1.1: The Jacobian product across $T$ unrolled time-steps. When eigenvalues $\lambda < 1$, gradients vanish exponentially ($\lambda^T \to 0$); when $\lambda > 1$, gradients explode.</div>
+      </div>
+
+      <p>This sequential dependency imposed a double penalty: <em>mathematically</em>, distant relationships suffered catastrophic signal decay; <em>computationally</em>, GPUs were paralyzed because step $t+1$ could not begin until step $t$ completed.</p>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.1</span>
+          <span class="plate-title">Sequential Propagation vs Parallel Direct Linking</span>
+        </div>
+        <p style="font-size:13.5px; margin-bottom:12px;">Notice how the sequential network forces unrolling across time, whereas attention forms direct $O(1)$ connections between all token pairs simultaneously:</p>
+        
+        <div style="display:flex; flex-direction:column; gap:12px;">
+          <div>
+            <span style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); text-transform:uppercase;">Sequential RNN Processing (Step-by-Step Delay):</span>
+            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;" id="seq-words"></div>
+          </div>
+          <div>
+            <span style="font-family:var(--font-mono); font-size:11px; color:var(--color-accent); text-transform:uppercase;">Transformer Parallel Attention ($O(1)$ Direct Interconnection):</span>
+            <div style="display:flex; gap:6px; margin-top:6px; flex-wrap:wrap;" id="par-words"></div>
+          </div>
+        </div>
+      </div>
+
+      <table class="table-monograph">
+        <thead>
+          <tr>
+            <th>Architecture</th>
+            <th>Sequential Ops</th>
+            <th>Max Signal Path</th>
+            <th>Layer Complexity</th>
+            <th>GPU Kernel Utilization</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Recurrent (LSTM)</strong></td>
+            <td>$O(n)$</td>
+            <td>$O(n)$</td>
+            <td>$O(n \cdot d^2)$</td>
+            <td>Memory-bound, low arithmetic intensity</td>
+          </tr>
+          <tr>
+            <td><strong>Self-Attention</strong></td>
+            <td>$O(1)$</td>
+            <td>$O(1)$</td>
+            <td>$O(n^2 \cdot d)$</td>
+            <td>Compute-bound, Tensor Core GEMM optimized</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- SECTION 01: TOKENIZATION -->
+    <section class="monograph-section" id="sec-01">
+      <div class="section-meta"><span>Chapter 01</span> · <span>Discrete Language Primitives</span></div>
+      <h2>Subword Tokenization & Byte Fallback</h2>
+      <p>Continuous neural networks cannot ingest raw alphanumeric strings. Character-level representations create sequences too long for quadratic attention ($n^2$), while word-level models require millions of vocabulary entries and still fail on unseen terminology.</p>
+      <p>Modern language models solve this trade-off via statistical subword compression algorithms—predominantly <strong>Byte Pair Encoding (BPE)</strong>, <strong>WordPiece</strong>, and <strong>SentencePiece with Byte Fallback</strong>. Common words remain intact as single tokens, while rare words are fractured into recognizable morphological stems and affixes.</p>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.2</span>
+          <span class="plate-title">Interactive Subword Tokenizer Laboratory</span>
+        </div>
+        <textarea id="tok-input" rows="2">Transformers decompose raw text into discrete vocabulary tokens using Byte Pair Encoding.</textarea>
+        
+        <div style="margin-top:14px;">
+          <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); text-transform:uppercase; margin-bottom:6px;">Resulting Subword Tokens:</div>
+          <div style="display:flex; gap:6px; flex-wrap:wrap;" id="tok-out"></div>
+        </div>
+
+        <div style="display:flex; justify-content:space-between; margin-top:14px; font-family:var(--font-mono); font-size:12px; flex-wrap:wrap; gap:8px;">
+          <div><span style="color:var(--color-muted);">Count:</span> <strong id="tok-count" style="color:var(--color-accent);">0 tokens</strong></div>
+          <div style="max-width:100%; word-break:break-all;"><span style="color:var(--color-muted);">Token IDs:</span> <span id="tok-ids" style="color:var(--color-ink-secondary);">[]</span></div>
+        </div>
+      </div>
+
+      <h3>The Three Dominant Subword Algorithms</h3>
+      <p>While all three algorithms construct a discrete vocabulary $V$ balanced between character bloat and word-level sparsity, they differ fundamentally in their statistical merge criteria, continuation serialization, and out-of-vocabulary (OOV) mitigations:</p>
+
+      <table class="table-monograph">
+        <thead>
+          <tr>
+            <th>Algorithm</th>
+            <th>Merge / Optimization Criterion</th>
+            <th>Continuation Marker</th>
+            <th>Whitespace Paradigm</th>
+            <th>OOV Handling Strategy</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Byte Pair Encoding (BPE)</strong><br><span style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted);">Sennrich et al. (2016)</span></td>
+            <td>Greedy frequency:<br>$\max \text{Count}(u, v)$</td>
+            <td>Leading space / delimiter</td>
+            <td>Regex pre-tokenization split</td>
+            <td><strong>Byte-Level BPE:</strong> Fallback to base 256 bytes (GPT-2/3/4, LLaMA 3). Zero <code>[UNK]</code>.</td>
+          </tr>
+          <tr>
+            <td><strong>WordPiece</strong><br><span style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted);">Schuster &amp; Nakajima (2012)</span></td>
+            <td>Likelihood ratio:<br>$\frac{\text{Count}(uv)}{\text{Count}(u) \cdot \text{Count}(v)}$</td>
+            <td><code>##</code> prefix (e.g. <code>##ing</code>)</td>
+            <td>Whitespace &amp; punctuation splitting</td>
+            <td>Emits explicit <code>[UNK]</code> token on unseen characters (BERT).</td>
+          </tr>
+          <tr>
+            <td><strong>SentencePiece (Byte Fallback)</strong><br><span style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted);">Kudo &amp; Richardson (2018)</span></td>
+            <td>Unigram LM probability or raw-stream BPE</td>
+            <td>Meta-symbol <code> </code> (U+2581)</td>
+            <td>Whitespace-agnostic raw stream</td>
+            <td><strong>Byte Fallback:</strong> Unseen glyphs decompose into <code>&lt;0xXX&gt;</code> UTF-8 byte tokens (T5, LLaMA 1/2).</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="math-monograph">
+        $$\text{WordPiece Score}(u, v) = \frac{\text{Count}(uv)}{\text{Count}(u) \times \text{Count}(v)}, \qquad \text{Byte Fallback: } \text{"🌟"} \longrightarrow [\text{"<0xF0>"}, \text{"<0x9F>"}, \text{"<0x8C>"}, \text{"<0x9F>"}] $$
+        <div class="math-caption">Equation 1.1: WordPiece mutual-information merge score and SentencePiece lossless byte-level decomposition.</div>
+      </div>
+    </section>
+
+    <!-- SECTION 02: EMBEDDINGS -->
+    <section class="monograph-section" id="sec-02">
+      <div class="section-meta"><span>Chapter 02</span> · <span>Continuous Geometric Representation</span></div>
+      <h2>Vector Embedding Geometry & Cosine Proximity</h2>
+      <p>Once text is converted into discrete integer IDs $t_i \in \{0, 1, \dots, V-1\}$, these identifiers index a lookup matrix $E \in \mathbb{R}^{V \times d_{\text{model}}}$. In this dense Euclidean space (typically $d_{\text{model}} = 4096$), semantic affinities correspond to geometric angles and directional offsets.</p>
+
+      <div class="math-monograph">
+        $$\cos(\theta) = \frac{\mathbf{u} \cdot \mathbf{v}}{\|\mathbf{u}\|_2 \|\mathbf{v}\|_2}, \quad \vec{v}_{\text{King}} - \vec{v}_{\text{Man}} + \vec{v}_{\text{Woman}} \approx \vec{v}_{\text{Queen}}$$
+        <div class="math-caption">Equation 2.1: Cosine similarity and semantic linear parallelogram arithmetic in representation space.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.3</span>
+          <span class="plate-title">2D Vector Embedding Coordinate Projection</span>
+        </div>
+        <svg id="emb-map" viewBox="0 0 100 100" style="width:100%; height:auto; aspect-ratio:100/65; min-height:220px; max-height:300px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule);"></svg>
+        <p style="font-size:12px; color:var(--color-muted); margin-top:8px; margin-bottom:0;">Hover over tokens to observe semantic clustering between royal titles and fruit classes.</p>
+      </div>
+    </section>
+
+    <!-- SECTION 03: ROPE -->
+    <section class="monograph-section" id="sec-03">
+      <div class="section-meta"><span>Chapter 03</span> · <span>Positional Relativity</span></div>
+      <h2>Rotary Position Embedding (RoPE)</h2>
+      <p>Because self-attention is permutation-equivariant ($\text{Attn}(P X) = P \text{Attn}(X)$), order information must be injected explicitly. While original Transformers used additive sinusoidal vectors ($x + p$), modern frontier architectures utilize <strong>Rotary Position Embedding (RoPE)</strong>.</p>
+      <p>RoPE applies an orthogonal 2D rotation matrix $\mathbf{R}_{\Theta, m}$ to 2D chunks of the Query and Key vectors at token position $m$. The dot product $\langle \mathbf{R}_m \mathbf{q}, \mathbf{R}_n \mathbf{k} \rangle$ cancels absolute indices, preserving only the relative displacement $\Delta = n - m$:</p>
+
+      <div class="math-monograph">
+        $$\mathbf{R}_{\Theta, m}^{2D} = \begin{pmatrix} \cos(m\theta) & -\sin(m\theta) \\ \sin(m\theta) & \cos(m\theta) \end{pmatrix}, \quad \langle \mathbf{R}_m \mathbf{q}, \mathbf{R}_n \mathbf{k} \rangle = \mathbf{q}^T \mathbf{R}_m^T \mathbf{R}_n \mathbf{k} = \mathbf{q}^T \mathbf{R}_{n-m} \mathbf{k}$$
+        <div class="math-caption">Equation 3.1: The orthogonality property of rotation matrices guarantees relative distance invariance.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.4</span>
+          <span class="plate-title">Live Relative Displacement Invariance Demonstrator</span>
+        </div>
+        <div class="plate-grid-2col">
+          <div>
+            <label style="font-family:var(--font-mono); font-size:12px; font-weight:700;">Query Position ($m$): <span id="rope-m-val" style="color:var(--color-accent)">2</span></label>
+            <input type="range" id="rope-m" min="0" max="10" value="2" oninput="renderRopeSim()">
+          </div>
+          <div>
+            <label style="font-family:var(--font-mono); font-size:12px; font-weight:700;">Key Position ($n$): <span id="rope-n-val" style="color:var(--color-accent)">5</span></label>
+            <input type="range" id="rope-n" min="0" max="10" value="5" oninput="renderRopeSim()">
+          </div>
+        </div>
+
+        <div style="margin-top:16px; padding:12px 16px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule);">
+          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:12px;">
+            <span id="rope-diff" style="color:var(--color-accent); font-weight:700;">Δ = 3</span>
+            <span>$\theta = \pi/4$</span>
+          </div>
+          <div class="rope-readout">
+            <div>$\mathbf{R}_m \mathbf{q}$: <span id="rope-q">[0.000, 1.000]</span></div>
+            <div>$\mathbf{R}_n \mathbf{k}$: <span id="rope-k">[-0.707, -0.707]</span></div>
+            <div>$\langle \mathbf{q}, \mathbf{k} \rangle$: <strong id="rope-dot" style="color:var(--color-accent);">-0.707</strong></div>
+          </div>
+          <p style="font-size:12px; color:var(--color-muted); margin-top:8px; margin-bottom:0;">Adjust both sliders while maintaining the difference $\Delta = n - m$. The inner product remains exactly invariant.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 04: SELF-ATTENTION & VARIANCE SCALING -->
+    <section class="monograph-section" id="sec-04">
+      <div class="section-meta"><span>Chapter 04</span> · <span>The Mathematical Core</span></div>
+      <h2>Scaled Dot-Product Attention & Variance Derivation</h2>
+      <p>Self-attention maps Query representations against Key vectors to distribute probability mass across Value vectors:</p>
+
+      <div class="math-monograph">
+        $$\text{Attention}(Q, K, V) = \text{softmax}\left(\frac{Q K^T}{\sqrt{d_k}}\right) V$$
+        <div class="math-caption">Equation 4.1: The canonical Scaled Dot-Product Attention formula (Vaswani et al., 2017).</div>
+      </div>
+
+      <p>Why is the scaling factor $\frac{1}{\sqrt{d_k}}$ required? Let $q_i, k_i \sim \mathcal{N}(0, 1)$ be independent zero-mean unit-variance components. The dot product is a sum of $d_k$ independent random variables $Z = \sum_{i=1}^{d_k} q_i k_i$. By linearity of variance for independent variables:</p>
+
+      <div class="math-monograph">
+        $$\mathbb{E}[q_i k_i] = \mathbb{E}[q_i]\mathbb{E}[k_i] = 0$$
+        $$\text{Var}(q_i k_i) = \mathbb{E}[(q_i k_i)^2] - (\mathbb{E}[q_i k_i])^2 = \mathbb{E}[q_i^2]\mathbb{E}[k_i^2] - 0 = (1)(1) = 1$$
+        $$\text{Var}\left(\sum_{i=1}^{d_k} q_i k_i\right) = \sum_{i=1}^{d_k} \text{Var}(q_i k_i) = d_k \implies \sigma = \sqrt{d_k}$$
+        <div class="math-caption">Equation 4.2: Full algebraic proof showing dot-product variance scales linearly with vector dimensionality $d_k$.</div>
+      </div>
+
+      <p>Without dividing by $\sqrt{d_k}$, logits scale to large magnitudes ($\pm 3\sqrt{d_k}$). The softmax function saturates into a one-hot distribution with near-zero derivatives, triggering catastrophic vanishing gradients during backpropagation.</p>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.5</span>
+          <span class="plate-title">Softmax Saturation Inspector & Sequence Heatmap</span>
+        </div>
+        
+        <div style="margin-bottom:16px;">
+          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:12px; margin-bottom:4px;">
+            <span>Head Dimension $d_k$:</span>
+            <strong id="dk-val" style="color:var(--color-accent);">64</strong>
+          </div>
+          <input type="range" id="dk-slider" min="0" max="5" value="3" oninput="renderDkScale()">
+          <div id="dk-note" style="font-size:12px; color:var(--color-muted); margin-top:6px;"></div>
+        </div>
+
+        <div class="plate-grid-2col">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-error); text-transform:uppercase; margin-bottom:6px;">Without Scaling (Softmax Saturates):</div>
+            <div id="dk-unscaled"></div>
+          </div>
+          <div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-success); text-transform:uppercase; margin-bottom:6px;">With $\frac{1}{\sqrt{d_k}}$ Scaling (Healthy Gradients):</div>
+            <div id="dk-scaled"></div>
+          </div>
+        </div>
+
+        <div style="margin-top:20px; border-top:1px solid var(--color-rule-subtle); padding-top:16px;">
+          <div id="att-label" style="font-family:var(--font-mono); font-size:12px; color:var(--color-muted); margin-bottom:8px;">Query Token: "cat" attending across sequence:</div>
+          <div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;" id="att-btns"></div>
+          <div id="att-heat" style="padding:10px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule); overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%;"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 05: MHA & GQA -->
+    <section class="monograph-section" id="sec-05">
+      <div class="section-meta"><span>Chapter 05</span> · <span>Inference Memory Engineering</span></div>
+      <h2>Multi-Head, Multi-Query & Grouped-Query Attention</h2>
+      <p>Multi-Head Attention (MHA) projects queries, keys, and values into $h$ subspaces, allowing the model to jointly attend to information from different representation aspects at different positions.</p>
+      <p>During autoregressive inference, previously generated Key and Value vectors must be cached in GPU high-bandwidth memory (HBM) to avoid recomputation. In long-context inference ($128\text{k}$ tokens), standard MHA's KV-cache consumes dozens of gigabytes per concurrent user, creating severe memory-bandwidth starvation.</p>
+
+      <div class="math-monograph">
+        $$\text{KV Cache Bytes} = 2 \times 2 \times n_{\text{layers}} \times n_{\text{kv\_heads}} \times d_{\text{head}} \times s \times b$$
+        <div class="math-caption">Equation 5.1: Memory consumption where 2 accounts for FP16 precision, the second 2 for Key and Value tensors, $s$ is sequence length, and $b$ is batch size.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.6</span>
+          <span class="plate-title">KV Cache VRAM Footprint Calculator (128k Tokens, Batch 1)</span>
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:16px; flex-wrap:wrap;">
+          <button class="btn" id="btn-arch-mha" onclick="setArchMode('MHA')">Multi-Head (MHA)</button>
+          <button class="btn primary" id="btn-arch-gqa" onclick="setArchMode('GQA')">Grouped-Query (GQA)</button>
+          <button class="btn" id="btn-arch-mqa" onclick="setArchMode('MQA')">Multi-Query (MQA)</button>
+        </div>
+
+        <div class="plate-grid-2col">
+          <div style="padding:14px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule);">
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); text-transform:uppercase;">Topology Ratio:</div>
+            <div id="arch-diagram" style="font-size:13.5px; line-height:1.6; margin-top:4px;"></div>
+          </div>
+          <div style="padding:14px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule);">
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-accent); text-transform:uppercase;">GPU Memory Impact (80 Layers):</div>
+            <div id="arch-memory" style="font-family:var(--font-mono); font-size:13px; line-height:1.6; margin-top:4px;"></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 06: FFN & SWIGLU -->
+    <section class="monograph-section" id="sec-06">
+      <div class="section-meta"><span>Chapter 06</span> · <span>Associative Memory Banks</span></div>
+      <h2>Feed-Forward Networks & SwiGLU Gating</h2>
+      <p>While self-attention facilitates token-to-token message passing, the position-wise Feed-Forward Network (FFN) functions as an associative key-value memory bank storing factual knowledge acquired during pretraining. It expands representations to $4d_{\text{model}}$ before compressing back.</p>
+
+      <div class="math-monograph">
+        $$\text{SwiGLU}(x) = \left(\text{Swish}(x W_1) \otimes x W_3\right) W_2 = \left((x W_1 \cdot \sigma(\beta x W_1)) \otimes x W_3\right) W_2$$
+        <div class="math-caption">Equation 6.1: The SwiGLU gated activation mechanism (Shazeer, 2020) standard in modern architectures.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.7</span>
+          <span class="plate-title">Semantic Fact Transformation Inspector</span>
+        </div>
+        <p style="font-size:13px; margin-bottom:10px;">Select a token to observe how the FFN converts contextual syntactic activations into enriched associative factual representations:</p>
+        <div style="display:flex; gap:6px; margin-bottom:14px;" id="ff-btns"></div>
+        <div style="display:flex; align-items:center; gap:12px;" id="ff-cards"></div>
+      </div>
+    </section>
+
+    <!-- SECTION 07: NORMALIZATION & RESIDUALS -->
+    <section class="monograph-section" id="sec-07">
+      <div class="section-meta"><span>Chapter 07</span> · <span>Gradient Optimization</span></div>
+      <h2>Residual Gradient Highways & RMSNorm Optimization</h2>
+      <p>Residual skip connections create unobstructed identity pathways $\frac{\partial (x + F(x))}{\partial x} = I + \frac{\partial F(x)}{\partial x}$, preventing gradient attenuation across hundreds of layers. In modern systems, <strong>Pre-LN</strong> has replaced Post-LN to eliminate warmup instability.</p>
+      <p>Furthermore, <strong>Root Mean Square Normalization (RMSNorm)</strong> replaces traditional LayerNorm by demonstrating that the mean-centering step is mathematically redundant for training stability:</p>
+
+      <div class="math-monograph">
+        $$\text{RMSNorm}(x) = \frac{x}{\text{RMS}(x)} \odot \gamma, \quad \text{where } \text{RMS}(x) = \sqrt{\frac{1}{d} \sum_{i=1}^d x_i^2 + \epsilon}$$
+        <div class="math-caption">Equation 7.1: RMSNorm eliminates mean calculation $\mu$, cutting GPU kernel memory passes by ~50%.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.8</span>
+          <span class="plate-title">LayerNorm vs RMSNorm Vector Walkthrough</span>
+        </div>
+        <p style="font-size:13.5px; margin-bottom:8px;">For vector $x = [2.0, -1.0, 3.0, 0.0]$ with $d = 4$:</p>
+        <ul style="padding-left:18px; font-size:13px; line-height:1.8; color:var(--color-ink-secondary);">
+          <li><strong>LayerNorm:</strong> $\mu = \frac{2 - 1 + 3 + 0}{4} = 1.0 \to \sigma^2 = \frac{1+4+4+1}{4} = 2.5 \to \frac{x - 1.0}{\sqrt{2.5 + \epsilon}}$ (Requires 2 full synchronization passes across GPU threads).</li>
+          <li><strong>RMSNorm:</strong> $\text{RMS}(x) = \sqrt{\frac{4 + 1 + 9 + 0}{4}} = \sqrt{3.5} \approx 1.87 \to \frac{x}{1.87}$ (Executed in 1 fused pass with zero mean synchronization).</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- SECTION 08: DECODING & SAMPLING -->
+    <section class="monograph-section" id="sec-08">
+      <div class="section-meta"><span>Chapter 08</span> · <span>Generation Dynamics</span></div>
+      <h2>Autoregressive Generation & Temperature Dynamics</h2>
+      <p>During inference, models emit predictions token-by-token. Logits $z_i$ from the final linear projection are modulated by sampling temperature $\tau$ prior to multinomial selection:</p>
+
+      <div class="math-monograph">
+        $$p_i = \frac{\exp(z_i / \tau)}{\sum_j \exp(z_j / \tau)}$$
+        <div class="math-caption">Equation 8.1: Temperature scaling. As $\tau \to 0$, distribution converges to greedy argmax; as $\tau \to \infty$, distribution approaches uniform noise.</div>
+      </div>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.9</span>
+          <span class="plate-title">Interactive Temperature Sampling Simulator</span>
+        </div>
+        
+        <div style="margin-bottom:14px;">
+          <div style="display:flex; justify-content:space-between; font-family:var(--font-mono); font-size:12px; margin-bottom:4px;">
+            <span>Temperature Parameter $\tau$:</span>
+            <strong id="temp-val" style="color:var(--color-accent);">0.70</strong>
+          </div>
+          <input type="range" id="temp-slider" min="0.1" max="2.0" step="0.05" value="0.7" oninput="updateTempSim()">
+          <div id="temp-note" style="font-size:12px; color:var(--color-muted); margin-top:4px;">focused / coding standard</div>
+        </div>
+
+        <div id="out-cands" style="margin-bottom:12px;"></div>
+        <div id="out-result" style="font-size:13.5px; color:var(--color-accent); font-weight:600; min-height:22px;"></div>
+
+        <div style="margin-top:18px; border-top:1px solid var(--color-rule-subtle); padding-top:14px;">
+          <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); text-transform:uppercase; margin-bottom:6px;">Autoregressive Continuation Animator:</div>
+          <div id="gen-out" style="font-family:var(--font-mono); font-size:13.5px; padding:10px 14px; background:var(--color-paper-subtle); border-radius:var(--radius-xs); border:1px solid var(--color-rule); min-height:40px; margin-bottom:10px;"></div>
+          <button class="btn primary" id="gen-btn" onclick="startGen()">Generate Continuation →</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 09: MODERN SYSTEMS -->
+    <section class="monograph-section" id="sec-09">
+      <div class="section-meta"><span>Chapter 09</span> · <span>Hardware & Modality Scaling</span></div>
+      <h2>Frontier Innovations: FlashAttention, MoE & ViT</h2>
+      <p>Three foundational hardware and architectural breakthroughs govern modern production frontier deployments:</p>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.10</span>
+          <span class="plate-title">SRAM Memory Hierarchy, Dynamic Routing & Spatial Patchification</span>
+        </div>
+
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div>
+            <h3 style="margin-top:0;">1. FlashAttention (IO-Aware SRAM Tiling)</h3>
+            <p style="font-size:13.5px;">Standard attention requires writing the $N \times N$ attention matrix to High-Bandwidth Memory (HBM, 3 TB/s). FlashAttention tiles blocks into on-chip SRAM (19 TB/s) by fusing the kernel and tracking running softmax statistics via online rescaling, yielding a 2×–4× end-to-end wall-clock speedup.</p>
+          </div>
+
+          <div>
+            <h3>2. Mixture of Experts (MoE)</h3>
+            <p style="font-size:13.5px;">Rather than activating all weights for every token, MoE routes each token dynamically to the top $k$ of $N$ feed-forward expert networks via a softmax gating router $G(x) = \text{TopK}(\text{Softmax}(x W_g))$. Parameter capacity scales to hundreds of billions while per-token FLOPs remain constant.</p>
+          </div>
+
+          <div>
+            <h3>3. Vision Transformers (ViT)</h3>
+            <p style="font-size:13.5px;">Extends self-attention to computer vision without convolutional inductors. Images $x \in \mathbb{R}^{H \times W \times C}$ are divided into $P \times P$ patches, flattened into $N = \frac{HW}{P^2}$ vectors, and processed as standard sequence tokens.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 10: SYNTHESIS -->
+    <section class="monograph-section" id="sec-10">
+      <div class="section-meta"><span>Chapter 10</span> · <span>Complete Architecture Synthesis</span></div>
+      <h2>The End-to-End Computational Graph</h2>
+      <p>Review the comprehensive forward propagation path through the modern decoder architecture:</p>
+
+      <div class="scholarly-plate">
+        <div class="plate-header">
+          <span class="plate-num">Plate 1.11</span>
+          <span class="plate-title">Interactive Forward Propagation Graph</span>
+        </div>
+        <div id="pipeline" style="display:flex; flex-direction:column; gap:8px;"></div>
+      </div>
+
+      <div class="math-monograph">
+        $$\text{Dense Parameter Count} \approx 12 \cdot n_{\text{layers}} \cdot d_{\text{model}}^2 + 2 \cdot V \cdot d_{\text{model}}$$
+        <div class="math-caption">Equation 10.1: Standard rule of thumb where each layer consumes $4 d^2$ for Q, K, V, O projections and $8 d^2$ for the Feed-Forward Block.</div>
+      </div>
+    </section>
+
+    <!-- Monograph Footer -->
+    <footer class="monograph-footer">
+      <div>AI Core Learning · Architectural Monograph Series</div>
+      <div>Read the companion study chapters in <a href="README.md">01-transformers/chapters/</a></div>
+    </footer>
+
+  </main>
+
+</div>
+
+<script>
+/* ===== SCROLLSPY & DRAWER NAVIGATION ===== */
+const sections = document.querySelectorAll('.monograph-section');
+const railLinks = document.querySelectorAll('.rail-link');
+const drawerLinks = document.querySelectorAll('.drawer-link');
+const railNav = document.getElementById('rail-nav');
+const drawerBadge = document.getElementById('drawer-curr-badge');
+const progressBar = document.getElementById('reading-progress');
+
+function onScrollHandler() {
+  const scrollY = window.scrollY;
+  let current = 'sec-00';
+  
+  sections.forEach(sec => {
+    const top = sec.offsetTop - 140;
+    if (scrollY >= top) {
+      current = sec.getAttribute('id');
+    }
+  });
+
+  const chNum = current ? current.replace('sec-', '') : '00';
+  if (drawerBadge) drawerBadge.textContent = chNum;
+
+  railLinks.forEach(link => {
+    const isActive = link.getAttribute('href') === '#' + current;
+    link.classList.toggle('active', isActive);
+    if (isActive && railNav && window.innerWidth <= 1100) {
+      const linkRect = link.getBoundingClientRect();
+      const navRect = railNav.getBoundingClientRect();
+      if (linkRect.left < navRect.left || linkRect.right > navRect.right) {
+        link.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  });
+
+  drawerLinks.forEach(link => {
+    link.classList.toggle('active', link.getAttribute('href') === '#' + current);
+  });
+
+  // Reading progress
+  if (progressBar) {
+    const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+    if (maxScroll > 0) {
+      const pct = Math.min(100, Math.max(0, (scrollY / maxScroll) * 100));
+      progressBar.style.width = pct + '%';
+    }
+  }
+}
+
+window.addEventListener('scroll', onScrollHandler, { passive: true });
+
+function openTocDrawer() {
+  const drawer = document.getElementById('toc-drawer');
+  const backdrop = document.getElementById('toc-backdrop');
+  if (drawer && backdrop) {
+    drawer.classList.add('open');
+    backdrop.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeTocDrawer() {
+  const drawer = document.getElementById('toc-drawer');
+  const backdrop = document.getElementById('toc-backdrop');
+  if (drawer && backdrop) {
+    drawer.classList.remove('open');
+    backdrop.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+}
+
+function toggleTocDrawer() {
+  const drawer = document.getElementById('toc-drawer');
+  if (drawer && drawer.classList.contains('open')) {
+    closeTocDrawer();
+  } else {
+    openTocDrawer();
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') closeTocDrawer();
+});
+
+/* ===== SLIDE 0: ANIMATION ===== */
+const W = ["The", "cat", "sat", "on", "the", "mat"];
+function initP0() {
+  const seq = document.getElementById('seq-words');
+  const par = document.getElementById('par-words');
+  W.forEach(w => {
+    seq.innerHTML += `<span style="padding:4px 10px; border-radius:3px; font-family:var(--font-mono); font-size:12px; border:1px solid var(--color-rule); background:var(--color-paper); transition:all 0.25s;">${w}</span>`;
+    par.innerHTML += `<span style="padding:4px 10px; border-radius:3px; font-family:var(--font-mono); font-size:12px; border:1px solid var(--color-rule); background:var(--color-paper); transition:all 0.25s;">${w}</span>`;
+  });
+  let si = 0;
+  setInterval(() => {
+    seq.querySelectorAll('span').forEach((s, j) => {
+      if (j === si) { s.style.background = 'var(--color-error)'; s.style.color = '#fff'; }
+      else if (j < si) { s.style.background = 'var(--color-paper-subtle)'; s.style.color = 'var(--color-muted)'; }
+      else { s.style.background = 'var(--color-paper)'; s.style.color = 'var(--color-ink)'; }
+    });
+    si = (si + 1) % W.length;
+  }, 700);
+
+  let on = false;
+  setInterval(() => {
+    on = !on;
+    par.querySelectorAll('span').forEach(s => {
+      s.style.background = on ? 'var(--color-accent)' : 'var(--color-paper)';
+      s.style.color = on ? '#ffffff' : 'var(--color-ink)';
+    });
+  }, 1200);
+}
+
+/* ===== SLIDE 1: TOKENIZER ===== */
+const PAL = ["#a0522d","#2e6b56","#465f8a","#8c5064","#6b732e"];
+function tokenize(s) {
+  if (!s) return [];
+  const out = [], re = /([A-Za-z]+(?:'[a-z]+)?|[0-9]+|[^\sA-Za-z0-9]|\s+)/g;
+  let m;
+  while ((m = re.exec(s)) !== null) {
+    const t = m[0];
+    if (/^[A-Za-z]/.test(t) && t.length > 5) {
+      const mid = Math.ceil(t.length * 0.6);
+      out.push(t.slice(0, mid), t.slice(mid));
+    } else {
+      out.push(t);
+    }
+  }
+  return out;
+}
+function hashId(s) { let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff; return h; }
+function renderTok() {
+  const tokens = tokenize(document.getElementById('tok-input').value);
+  const el = document.getElementById('tok-out');
+  el.innerHTML = '';
+  tokens.forEach((t, i) => {
+    const c = PAL[i % PAL.length];
+    el.innerHTML += `<span style="padding:3px 8px; border-radius:3px; font-family:var(--font-mono); font-size:12px; background:${c}15; color:${c}; border:1px solid ${c}40; font-weight:600;">${t.replace(/ /g, '·')}</span>`;
+  });
+  document.getElementById('tok-count').textContent = tokens.length + ' tokens';
+  document.getElementById('tok-ids').textContent = '[' + tokens.map(hashId).join(', ') + ']';
+}
+
+/* ===== SLIDE 2: EMBEDDING MAP ===== */
+function initEmb() {
+  const pts = [{w:"King",x:72,y:35},{w:"Queen",x:80,y:40},{w:"Man",x:50,y:55},{w:"Woman",x:58,y:60},{w:"Apple",x:20,y:80},{w:"Banana",x:25,y:75},{w:"Car",x:75,y:85}];
+  const svg = document.getElementById('emb-map'), ns = "http://www.w3.org/2000/svg";
+  [20,40,60,80].forEach(v => {
+    const l = document.createElementNS(ns,'line'); l.setAttribute('x1',v); l.setAttribute('y1',10); l.setAttribute('x2',v); l.setAttribute('y2',95); l.setAttribute('stroke','var(--color-rule)'); l.setAttribute('stroke-width','0.4'); svg.appendChild(l);
+    const l2 = document.createElementNS(ns,'line'); l2.setAttribute('x1',5); l2.setAttribute('y1',v); l2.setAttribute('x2',95); l2.setAttribute('y2',v); l2.setAttribute('stroke','var(--color-rule)'); l2.setAttribute('stroke-width','0.4'); svg.appendChild(l2);
+  });
+  [{cx:70,cy:47,rx:18,ry:18,s:'var(--color-accent)',l:'royalty',lx:70,ly:27},{cx:22,cy:77,rx:12,ry:10,s:'var(--color-success)',l:'fruit',lx:22,ly:67}].forEach(c => {
+    const e = document.createElementNS(ns,'ellipse');
+    ['cx','cy','rx','ry'].forEach(a => e.setAttribute(a, c[a]));
+    e.setAttribute('fill','none'); e.setAttribute('stroke',c.s); e.setAttribute('stroke-width','0.5'); e.setAttribute('stroke-dasharray','2 2');
+    svg.appendChild(e);
+    const t = document.createElementNS(ns,'text'); t.setAttribute('x',c.lx); t.setAttribute('y',c.ly); t.setAttribute('fill',c.s); t.setAttribute('font-size','3.5'); t.setAttribute('font-family','var(--font-mono)'); t.setAttribute('text-anchor','middle'); t.textContent = c.l; svg.appendChild(t);
+  });
+  pts.forEach(p => {
+    const g = document.createElementNS(ns,'g'); g.style.cursor = 'pointer';
+    const ci = document.createElementNS(ns,'circle'); ci.setAttribute('cx',p.x); ci.setAttribute('cy',p.y); ci.setAttribute('r','1.8'); ci.setAttribute('fill','var(--color-ink)');
+    const tx = document.createElementNS(ns,'text'); tx.setAttribute('x',p.x); tx.setAttribute('y',p.y-3.5); tx.setAttribute('fill','var(--color-ink)'); tx.setAttribute('font-family','var(--font-mono)'); tx.setAttribute('font-size','3.5'); tx.setAttribute('text-anchor','middle'); tx.textContent = p.w;
+    g.appendChild(ci); g.appendChild(tx);
+    g.onmouseenter = () => { ci.setAttribute('r','2.6'); ci.setAttribute('fill','var(--color-accent)'); tx.setAttribute('fill','var(--color-accent)'); tx.setAttribute('font-weight','700'); };
+    g.onmouseleave = () => { ci.setAttribute('r','1.8'); ci.setAttribute('fill','var(--color-ink)'); tx.setAttribute('fill','var(--color-ink)'); tx.removeAttribute('font-weight'); };
+    svg.appendChild(g);
+  });
+}
+
+/* ===== SLIDE 3: ROPE SIMULATOR ===== */
+function renderRopeSim() {
+  const m = +document.getElementById('rope-m').value;
+  const n = +document.getElementById('rope-n').value;
+  document.getElementById('rope-m-val').textContent = m;
+  document.getElementById('rope-n-val').textContent = n;
+  const diff = n - m;
+  document.getElementById('rope-diff').textContent = `Δ = ${diff} (Relative Displacement)`;
+  
+  const theta = Math.PI / 4;
+  const q_x = Math.cos(m * theta);
+  const q_y = Math.sin(m * theta);
+  const k_x = Math.cos(n * theta);
+  const k_y = Math.sin(n * theta);
+  
+  const dot = q_x * k_x + q_y * k_y;
+  
+  document.getElementById('rope-q').textContent = `[${q_x.toFixed(3)}, ${q_y.toFixed(3)}]`;
+  document.getElementById('rope-k').textContent = `[${k_x.toFixed(3)}, ${k_y.toFixed(3)}]`;
+  document.getElementById('rope-dot').textContent = dot.toFixed(3);
+}
+
+/* ===== SLIDE 4: ATTENTION & DK SCALING ===== */
+const ATT_W = {
+  0:[.60,.15,.05,.05,.10,.05],
+  1:[.15,.30,.15,.05,.05,.30],
+  2:[.05,.30,.30,.20,.05,.10],
+  3:[.05,.05,.15,.20,.15,.40],
+  4:[.10,.05,.05,.15,.30,.35],
+  5:[.05,.30,.10,.20,.10,.25]
+};
+let attFocus = 1;
+function renderAtt() {
+  const btns = document.getElementById('att-btns');
+  btns.innerHTML = '';
+  W.forEach((w, i) => {
+    btns.innerHTML += `<button class="btn ${i===attFocus?'primary':''}" onclick="attFocus=${i}; renderAtt()">${w}</button>`;
+  });
+  document.getElementById('att-label').textContent = `Query Token: "${W[attFocus]}" attending across sentence:`;
+
+  const heat = document.getElementById('att-heat');
+  heat.style.display = 'grid';
+  heat.style.gridTemplateColumns = `52px ${Array(W.length).fill('minmax(40px,1fr)').join(' ')}`;
+  heat.style.gap = '3px';
+  let html = '<div></div>';
+  W.forEach(w => {
+    html += `<div style="font-size:11px; font-family:var(--font-mono); color:var(--color-muted); text-align:center; padding:2px 0;">${w}</div>`;
+  });
+  W.forEach((word, row) => {
+    const isRow = row === attFocus;
+    html += `<div style="font-size:11px; font-family:var(--font-mono); text-align:right; padding:4px 6px; color:${isRow?'var(--color-accent)':'var(--color-muted)'}; font-weight:${isRow?700:400};">${word}</div>`;
+    ATT_W[row].forEach((wt, col) => {
+      const border = isRow ? '2px solid var(--color-accent)' : '1px solid var(--color-rule)';
+      const bg = `rgba(186, 92, 48, ${(0.08 + wt * 0.92).toFixed(2)})`;
+      html += `<div onclick="attFocus=${row}; renderAtt()" style="height:24px; border-radius:3px; background:${bg}; border:${border}; cursor:pointer; display:flex; align-items:center; justify-content:center;"><span style="font-size:10px; font-family:var(--font-mono); color:#ffffff;">${(wt*100).toFixed(0)}%</span></div>`;
+    });
+  });
+  heat.innerHTML = html;
+}
+
+const DK_VALS = [1, 4, 16, 64, 128, 512];
+const DK_RAW = [2.4, 0.8, -1.6, -1.2, 0.0, 0.8];
+const DK_LABELS = ["The","cat","sat","on","the","mat"];
+function softmax(arr) {
+  const mx = Math.max(...arr);
+  const e = arr.map(x => Math.exp(x - mx));
+  const s = e.reduce((a,b) => a+b, 0);
+  return e.map(v => v/s);
+}
+function renderDkScale() {
+  const idx = +document.getElementById('dk-slider').value;
+  const dk = DK_VALS[idx];
+  document.getElementById('dk-val').textContent = dk;
+  const rawScores = DK_RAW.map(s => s * Math.sqrt(dk));
+  const unscaled = softmax(rawScores);
+  const scaled = softmax(rawScores.map(s => s / Math.sqrt(dk)));
+
+  function drawBars(parentId, probs, color) {
+    const el = document.getElementById(parentId);
+    el.innerHTML = '';
+    probs.forEach((p, i) => {
+      el.innerHTML += `<div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;"><span style="width:36px; font-size:11.5px; font-family:var(--font-mono); text-align:right;">${DK_LABELS[i]}</span><div style="flex:1; height:14px; background:var(--color-paper-subtle); border-radius:2px; overflow:hidden;"><div style="height:100%; width:${(p*100).toFixed(1)}%; background:${color};"></div></div><span style="width:36px; font-size:11px; font-family:var(--font-mono); text-align:right; color:var(--color-muted);">${(p*100).toFixed(0)}%</span></div>`;
+    });
+  }
+  drawBars('dk-unscaled', unscaled, 'var(--color-error)');
+  drawBars('dk-scaled',   scaled,   'var(--color-success)');
+
+  const max = Math.max(...unscaled);
+  const saturated = max > 0.90;
+  document.getElementById('dk-note').textContent = `At d_k=${dk}: raw dot-products reach ±${(2.4*Math.sqrt(dk)).toFixed(1)}. Without ÷√d_k, max probability = ${(max*100).toFixed(0)}% (${saturated?'saturates to one-hot, gradients vanish':'well-distributed, gradients flow'}).`;
+}
+
+/* ===== SLIDE 5: MHA vs GQA vs MQA ===== */
+let currentArch = 'GQA';
+function setArchMode(arch) {
+  currentArch = arch;
+  document.getElementById('btn-arch-mha').className = arch === 'MHA' ? 'btn primary' : 'btn';
+  document.getElementById('btn-arch-gqa').className = arch === 'GQA' ? 'btn primary' : 'btn';
+  document.getElementById('btn-arch-mqa').className = arch === 'MQA' ? 'btn primary' : 'btn';
+  
+  const diag = document.getElementById('arch-diagram');
+  const mem = document.getElementById('arch-memory');
+  
+  if (arch === 'MHA') {
+    diag.innerHTML = `64 Query Heads → 64 KV Heads<br><span style="color:var(--color-ink)">Ratio: 1 Query : 1 KV Head</span><br>Each query head has a private Key/Value projection. Maximum representation capacity, highest memory overhead.`;
+    mem.innerHTML = `2 × 80 layers × 64 heads × 128 d_k × 131k tokens × 2 bytes<br>= <strong style="color:var(--color-error)">34.3 GB per user</strong><br>Status: Severely Memory Bandwidth Bound`;
+  } else if (arch === 'GQA') {
+    diag.innerHTML = `64 Query Heads → 8 KV Groups<br><span style="color:var(--color-accent); font-weight:700;">Ratio: 8 Queries : 1 KV Head</span><br>Groups of 8 query heads share 1 Key/Value head. Retains ~99% MHA quality at an 8x memory reduction!`;
+    mem.innerHTML = `2 × 80 layers × 8 heads × 128 d_k × 131k tokens × 2 bytes<br>= <strong style="color:var(--color-accent)">4.29 GB per user (8x savings!)</strong><br>Status: Optimal Frontier Standard (LLaMA 3, Mistral)`;
+  } else {
+    diag.innerHTML = `64 Query Heads → 1 Shared KV Head<br><span style="color:var(--color-muted)">Ratio: 64 Queries : 1 KV Head</span><br>All query heads share a single key/value representation. Maximum memory compression, slight quality degradation.`;
+    mem.innerHTML = `2 × 80 layers × 1 head × 128 d_k × 131k tokens × 2 bytes<br>= <strong style="color:var(--color-success)">0.54 GB per user (64x savings!)</strong><br>Status: Ultra Lightweight`;
+  }
+}
+
+/* ===== SLIDE 6: FEED-FORWARD ===== */
+const FF_B = ["determiner — near 'cat', low information","animate noun — subject, near 'sat'+'mat'","past-tense verb — agent is 'cat'","spatial preposition — links verb to location","determiner — near 'mat', low information","inanimate noun — location surface, receives action"];
+const FF_A = ["signals definite noun phrase start","animate agent, high confidence of 'doing'","completed physical action, likely past","directional relationship, next token is location","specific/known object incoming","resting surface, spatial endpoint of action"];
+let ffActive = null;
+function renderFF() {
+  const btns = document.getElementById('ff-btns');
+  btns.innerHTML = '';
+  W.forEach((w, i) => {
+    btns.innerHTML += `<button class="btn ${i===ffActive?'primary':''}" onclick="ffActive=ffActive===${i}?null:${i}; renderFF()">${w}</button>`;
+  });
+  const cards = document.getElementById('ff-cards');
+  if (ffActive === null) { cards.innerHTML = '<span style="font-size:12.5px; color:var(--color-muted);">Select a token above to inspect associative memory retrieval.</span>'; return; }
+  cards.innerHTML = `
+    <div style="flex:1; padding:12px; border-radius:var(--radius-xs); border:1px solid var(--color-rule); background:var(--color-paper-card);">
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); text-transform:uppercase;">Attention Syntactic Output:</div>
+      <div style="font-size:13.5px; color:var(--color-ink); margin-top:2px;">${FF_B[ffActive]}</div>
+    </div>
+    <div class="ff-arrow-icon" style="font-family:var(--font-mono); font-size:16px; color:var(--color-accent); transition:transform 0.2s;">→</div>
+    <div style="flex:1; padding:12px; border-radius:var(--radius-xs); border:1px solid var(--color-accent); background:var(--color-accent-soft);">
+      <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-accent); text-transform:uppercase; font-weight:700;">FFN Enriched Fact Concept:</div>
+      <div style="font-size:13.5px; color:var(--color-ink); font-weight:600; margin-top:2px;">${FF_A[ffActive]}</div>
+    </div>`;
+}
+
+/* ===== SLIDE 8: SAMPLING SIM ===== */
+const CANDS = [{t:"mat",p:.32},{t:"floor",p:.18},{t:"couch",p:.12},{t:"table",p:.09},{t:"rug",p:.07},{t:"bed",p:.05},{t:"chair",p:.04},{t:"grass",p:.03}];
+let picked = null;
+function applyTemp(probs, tau) {
+  const logs = probs.map(p => Math.log(p) / tau);
+  const maxL = Math.max(...logs);
+  const exps = logs.map(l => Math.exp(l - maxL));
+  const sum = exps.reduce((a, b) => a + b, 0);
+  return exps.map(e => e / sum);
+}
+function updateTempSim() {
+  const tau = parseFloat(document.getElementById('temp-slider').value);
+  document.getElementById('temp-val').textContent = tau.toFixed(2);
+  let note = 'raw softmax';
+  if (tau < 0.4) note = 'greedy argmax / deterministic';
+  else if (tau < 0.8) note = 'focused / coding standard';
+  else if (tau > 1.4) note = 'high diversity / creative exploration';
+  document.getElementById('temp-note').textContent = note;
+  
+  const adjusted = applyTemp(CANDS.map(c => c.p), tau);
+  const el = document.getElementById('out-cands');
+  el.innerHTML = '';
+  CANDS.forEach((c, i) => {
+    const p = adjusted[i];
+    const on = picked === c.t;
+    el.innerHTML += `<div onclick="picked='${c.t}'; updateTempSim()" style="display:flex; align-items:center; gap:8px; padding:4px 8px; border-radius:3px; cursor:pointer; background:${on?'var(--color-accent-soft)':'transparent'}; border:1px solid ${on?'var(--color-accent)':'transparent'}; margin-bottom:4px;"><span style="width:48px; font-family:var(--font-mono); font-size:13px; font-weight:600; color:${on?'var(--color-accent)':'var(--color-ink)'}">${c.t}</span><div style="flex:1; height:12px; background:var(--color-paper-subtle); border-radius:2px; overflow:hidden;"><div style="height:100%; width:${(p*100).toFixed(1)}%; background:${on?'var(--color-accent)':'var(--color-rule-strong)'}"></div></div><span style="width:36px; font-family:var(--font-mono); font-size:11px; text-align:right; color:var(--color-muted);">${(p*100).toFixed(0)}%</span></div>`;
+  });
+  document.getElementById('out-result').innerHTML = picked ? `Selected Token: "The cat sat on the <strong>${picked}</strong>"` : '';
+}
+
+let generating = false;
+function startGen() {
+  if (generating) return;
+  generating = true;
+  const seq = ["mat", ".", " It", " purred", " softly", " in", " the", " warm", " sun", "."];
+  const btn = document.getElementById('gen-btn'), out = document.getElementById('gen-out');
+  btn.disabled = true; btn.textContent = 'Generating...'; out.innerHTML = '';
+  let i = 0;
+  const t = setInterval(() => {
+    if (i < seq.length) { out.innerHTML += seq[i]; i++; }
+    else { clearInterval(t); generating = false; btn.disabled = false; btn.textContent = 'Generate Continuation →'; }
+  }, 300);
+}
+
+/* ===== SLIDE 10: PIPELINE ACCORDION ===== */
+const PIPE = [
+  {l:"1. Subword Tokenizer (BPE)",c:"var(--color-ink)",d:"UTF-8 String → Token IDs ∈ ℕⁿ",dt:'Splits text into subwords (e.g. "Transformer" → ["Transform", "er"]). Vocab size V ≈ 32k–128k.'},
+  {l:"2. Token Embedding Lookup",c:"var(--color-ink)",d:"IDs → x ∈ ℝⁿˣᵈ",dt:'x_i = E[token_id_i] where E ∈ ℝ^{V × d_model}. Maps categorical integer IDs into dense geometric vectors.'},
+  {l:"3. Rotary Position Embedding (RoPE)",c:"var(--color-accent)",d:"Rotate Q & K pairs by m·θ",dt:'Applies 2D rotation matrices to Q and K coordinates. Preserves relative distances Δ = n - m automatically.'},
+  {l:"4. Causal Masking (Decoder)",c:"var(--color-ink)",d:"Set upper triangle to −∞",dt:'For all future positions j > i, sets logits to −∞ before softmax so tokens cannot peek into future context.'},
+  {l:"5. Grouped-Query Attention (GQA)",c:"var(--color-accent)",d:"softmax(QKᵀ / √d_k) · V",dt:'Computes scaled dot products. Multiple query heads share groups of Key/Value heads to minimize inference KV cache.'},
+  {l:"6. RMSNorm & Residual Addition",c:"var(--color-ink)",d:"x = x + Sublayer(RMSNorm(x))",dt:'Normalizes via root-mean-square without mean-centering. Residual skip connections create gradient highways.'},
+  {l:"7. SwiGLU Feed-Forward Network",c:"var(--color-accent)",d:"Swish(xW₁) ⊗ (xW₃) · W₂",dt:'Expands to 4×d_model and applies non-linear gating to retrieve associative knowledge before compressing back.'},
+  {l:"8. Final RMSNorm & LM Head Projection",c:"var(--color-ink)",d:"logits = RMSNorm(x) · Eᵀ",dt:'Projects final representations back to vocabulary dimension V to sample next token distribution.'}
+];
+let pipeActive = null;
+function renderPipe() {
+  const el = document.getElementById('pipeline');
+  el.innerHTML = '';
+  PIPE.forEach((s, i) => {
+    const on = pipeActive === i;
+    el.innerHTML += `
+      <div style="border:1px solid ${on?'var(--color-accent)':'var(--color-rule)'}; border-radius:var(--radius-xs); background:${on?'var(--color-accent-soft)':'var(--color-paper-card)'}; overflow:hidden;">
+        <div onclick="pipeActive=pipeActive===${i}?null:${i}; renderPipe()" style="display:flex; justify-content:space-between; align-items:center; padding:10px 14px; cursor:pointer;">
+          <div>
+            <div style="font-family:var(--font-mono); font-size:13px; font-weight:700; color:${on?'var(--color-accent)':'var(--color-ink)'};">${s.l}</div>
+            <div style="font-family:var(--font-mono); font-size:11px; color:var(--color-muted); margin-top:2px;">${s.d}</div>
+          </div>
+          <span style="font-family:var(--font-mono); font-size:12px; color:var(--color-muted); transform:${on?'rotate(90deg)':'none'}; transition:transform 0.2s;">▶</span>
+        </div>
+        ${on ? `<div style="padding:10px 14px; border-top:1px solid var(--color-rule); font-size:13px; color:var(--color-ink); background:var(--color-paper);">${s.dt}</div>` : ''}
+      </div>`;
+  });
+}
+
+/* ===== INITIALIZATION ===== */
+initP0();
+initEmb();
+renderTok();
+renderRopeSim();
+renderAtt();
+renderDkScale();
+setArchMode('GQA');
+renderFF();
+updateTempSim();
+renderPipe();
+
+document.getElementById('tok-input').addEventListener('input', renderTok);
+
+/* KaTeX Auto-Render */
+renderMathInElement(document.body, {
+  delimiters: [
+    { left: '$$', right: '$$', display: true },
+    { left: '$', right: '$', display: false }
+  ],
+  throwOnError: false
+});
+</script>
+</body>
+</html>

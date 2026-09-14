@@ -18,10 +18,13 @@
 
   /* Accents (<3% viewport footprint - Warm Antique Terracotta) */
   --color-accent:       oklch(54.0% 0.135 52);
+  --color-accent-ink:   oklch(97.0% 0.012 78);
   --color-accent-soft:  oklch(90.0% 0.038 52);
   --color-accent-hover: oklch(49.0% 0.140 52);
   --color-accent-focus: oklch(47.0% 0.145 52);
   --color-focus:        oklch(54.0% 0.135 52);
+  --banner-height:      56px;
+  --z-sticky-nav:       300;
 
   /* Semantic State Tokens (Eye-Gentle Laurel, Cerulean, Coral) */
   --color-success:      oklch(52.0% 0.115 145);
